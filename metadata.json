@@ -1,0 +1,5 @@
+{
+  "name": "Shawshank Travel Planner",
+  "description": "An intelligent travel planner that suggests destinations based on your budget and time of year, then creates a curated itinerary of both popular and off-beat attractions.",
+  "requestFramePermissions": []
+}
