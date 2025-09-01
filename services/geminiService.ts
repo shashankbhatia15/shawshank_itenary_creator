@@ -106,6 +106,56 @@ export async function getTravelSuggestions(budget: string, timeOfYear: string, c
   }
 }
 
+export async function getOffBeatSuggestions(): Promise<DestinationSuggestion[]> {
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: `You are an expert travel agent specializing in unique, off-the-beaten-path destinations. Suggest 5 countries that are considered safe for tourists but are less explored and not typically on mainstream "top 10" travel lists. For each country, provide:
+1. Its name.
+2. A short, compelling description (2-3 sentences) of why it's a great off-beat destination.
+3. A summary of visa requirements for Indian citizens (mention e-visa/visa on arrival).
+4. An estimated average cost in USD for a solo traveler for a 7-day trip, including mid-range (3-4 star) hotels, daily meals, and one tourist activity per day. Provide only a single number for the cost. Also provide a breakdown of this 7-day cost into 'accommodation', 'food', and 'activities'.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              name: { type: Type.STRING, description: "The name of the country." },
+              country: { type: Type.STRING, description: "The name of the country." },
+              description: { type: Type.STRING },
+              visaInfo: { type: Type.STRING, description: "Visa requirements for Indian citizens, including e-visa or visa on arrival details." },
+              averageCost: { type: Type.NUMBER, description: "Estimated 7-day cost in USD for a solo traveler."},
+              costBreakdown: {
+                type: Type.OBJECT,
+                description: "Breakdown of the 7-day cost.",
+                properties: {
+                  accommodation: { type: Type.NUMBER, description: "Estimated 7-day accommodation cost in USD." },
+                  food: { type: Type.NUMBER, description: "Estimated 7-day food cost in USD." },
+                  activities: { type: Type.NUMBER, description: "Estimated 7-day activities cost in USD." }
+                },
+                required: ["accommodation", "food", "activities"]
+              }
+            },
+            required: ["name", "country", "description", "visaInfo", "averageCost", "costBreakdown"],
+          },
+        },
+      },
+    });
+
+    const jsonText = response.text.trim();
+    const suggestions: DestinationSuggestion[] = JSON.parse(jsonText);
+    
+    return suggestions;
+
+  } catch (error) {
+    console.error("Error fetching off-beat travel suggestions:", error);
+    throw new Error("Failed to generate off-beat travel suggestions. Please try again.");
+  }
+}
+
+
 const getBaseTravelPlanSchema = () => ({
   type: Type.OBJECT,
   properties: {

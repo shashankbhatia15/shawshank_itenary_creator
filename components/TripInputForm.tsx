@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 
 interface TripInputFormProps {
   onGetSuggestions: (budget: string, timeOfYear: string, continent: string, country: string) => void;
+  onGetOffBeatSuggestions: () => void;
   isLoading: boolean;
 }
 
-const TripInputForm: React.FC<TripInputFormProps> = ({ onGetSuggestions, isLoading }) => {
+const TripInputForm: React.FC<TripInputFormProps> = ({ onGetSuggestions, onGetOffBeatSuggestions, isLoading }) => {
   const [budget, setBudget] = useState('Budget-friendly');
   const [timeOfYear, setTimeOfYear] = useState('Spring (Mar-May)');
   const [continent, setContinent] = useState('Any');
@@ -105,6 +106,27 @@ const TripInputForm: React.FC<TripInputFormProps> = ({ onGetSuggestions, isLoadi
           className="w-full bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105"
         >
           {isLoading ? 'Searching...' : 'Find Destinations'}
+        </button>
+
+        <div className="relative">
+            <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                <div className="w-full border-t border-slate-600" />
+            </div>
+            <div className="relative flex justify-center">
+                <span className="bg-slate-800 px-2 text-sm text-slate-400">OR</span>
+            </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={onGetOffBeatSuggestions}
+          disabled={isLoading}
+          className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 flex items-center justify-center gap-2"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM4.332 8.027a6.012 6.012 0 011.912-2.706C6.512 5.73 6.974 6 7.5 6A1.5 1.5 0 019 7.5V8a2 2 0 004 0 2 2 0 011.523-1.943A5.977 5.977 0 0116 10c0 .34-.028.675-.083 1H15a2 2 0 00-2 2v1.5a1.5 1.5 0 01-3 0V12a2 2 0 00-2-2 2 2 0 01-2-2V8c0-.428.081-.83.225-1.195a.992.992 0 00-.225-.03c-.34.02-.67.1-.983.237a5.96 5.96 0 00-1.682 1.996z" clipRule="evenodd" />
+          </svg>
+          Inspire Me: Off-Beat Ideas
         </button>
       </form>
     </div>

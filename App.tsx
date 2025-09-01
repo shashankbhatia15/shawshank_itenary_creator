@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { AppStep, DestinationSuggestion, TravelPlan, ItineraryStyle, DailyPlan, ItineraryLocation } from './types';
-import { getTravelSuggestions, getTravelPlan, getDirectCountryInfo, rebuildTravelPlan } from './services/geminiService';
+import { getTravelSuggestions, getTravelPlan, getDirectCountryInfo, rebuildTravelPlan, getOffBeatSuggestions } from './services/geminiService';
 import TripInputForm from './components/TripInputForm';
 import DestinationSuggestions from './components/DestinationSuggestions';
 import TravelPlanComponent from './components/TravelPlan';
@@ -45,6 +45,21 @@ const App: React.FC = () => {
         setSuggestions(result);
         setStep('suggestions');
       }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An unknown error occurred.');
+      setStep('input');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGetOffBeatSuggestions = async () => {
+    setError(null);
+    setIsLoading(true);
+    try {
+      const result = await getOffBeatSuggestions();
+      setSuggestions(result);
+      setStep('suggestions');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred.');
       setStep('input');
@@ -188,7 +203,7 @@ const App: React.FC = () => {
     
     switch (step) {
       case 'input':
-        return <TripInputForm onGetSuggestions={handleGetSuggestions} isLoading={isLoading} />;
+        return <TripInputForm onGetSuggestions={handleGetSuggestions} onGetOffBeatSuggestions={handleGetOffBeatSuggestions} isLoading={isLoading} />;
       case 'suggestions':
         return <DestinationSuggestions suggestions={suggestions} onSelectDestination={handleSelectDestination} isLoading={isLoading} onBack={handleBack} />;
       case 'duration':
@@ -214,7 +229,7 @@ const App: React.FC = () => {
         handleReset();
         return null;
       default:
-        return <TripInputForm onGetSuggestions={handleGetSuggestions} isLoading={isLoading} />;
+        return <TripInputForm onGetSuggestions={handleGetSuggestions} onGetOffBeatSuggestions={handleGetOffBeatSuggestions} isLoading={isLoading} />;
     }
   }
 
