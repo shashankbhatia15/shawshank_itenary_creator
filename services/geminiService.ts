@@ -311,7 +311,7 @@ const getBaseTravelPlanSchema = () => ({
                 name: { type: Type.STRING },
                 description: { type: Type.STRING },
                 city: { type: Type.STRING, description: "The city where the activity is located." },
-                type: { type: Type.STRING, enum: ['Touristy', 'Off-beat'] },
+                type: { type: Type.STRING, description: "The type of activity. Must be either 'Touristy' or 'Off-beat'." },
                 duration: { type: Type.STRING, description: "Estimated time to complete the activity, e.g., '2-3 hours', 'Full day'." },
                 averageCost: { type: Type.NUMBER, description: "Estimated cost per person in USD. Must be the sum of the breakdown." },
                 costBreakdown: {
