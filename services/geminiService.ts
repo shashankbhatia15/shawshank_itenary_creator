@@ -297,12 +297,10 @@ const getBaseTravelPlanSchema = () => ({
                     cost: { type: Type.NUMBER, description: "Estimated cost per person in USD." },
                     description: { type: Type.STRING, description: "A brief, helpful note about this option, e.g., 'Fastest but most expensive', 'Scenic route'." }
                   },
-                  propertyOrdering: ["mode", "duration", "cost", "description"],
                   required: ["mode", "duration", "cost"]
                 }
               }
             },
-            propertyOrdering: ["fromCity", "toCity", "options"],
             required: ["fromCity", "toCity", "options"]
           },
           activities: {
@@ -324,7 +322,6 @@ const getBaseTravelPlanSchema = () => ({
                     food: { type: Type.NUMBER, description: "Cost for food, if it is a main part of the activity (e.g., dinner cruise). Usually 0." },
                     activities: { type: Type.NUMBER, description: "Cost for tickets, entrance fees, or the primary activity itself." }
                   },
-                  propertyOrdering: ["accommodation", "food", "activities"],
                   required: ["accommodation", "food", "activities"]
                 },
                 lat: { type: Type.NUMBER, description: "The precise latitude of the activity location." },
@@ -342,13 +339,11 @@ const getBaseTravelPlanSchema = () => ({
                   }
                 }
               },
-              propertyOrdering: ["name", "description", "city", "type", "duration", "averageCost", "costBreakdown", "lat", "lng", "links"],
               required: ["name", "description", "city", "type", "averageCost", "costBreakdown", "lat", "lng", "duration", "links"],
             }
           },
           keepInMind: { type: Type.STRING, description: "A bulleted list of helpful 'dos and don'ts' and warnings about potential local scams relevant to the day's activities. Use markdown for bullet points (e.g., '* Do this...')." },
         },
-        propertyOrdering: ["day", "title", "travelInfo", "activities", "keepInMind"],
         required: ["day", "title", "activities", "keepInMind"],
       },
     },
@@ -362,7 +357,6 @@ const getBaseTravelPlanSchema = () => ({
           estimatedCost: { type: Type.NUMBER, description: "The total estimated accommodation cost in USD for the duration of the stay in this city." },
           nights: { type: Type.INTEGER, description: "The number of nights spent in this city." }
         },
-        propertyOrdering: ["city", "nights", "estimatedCost"],
         required: ["city", "nights", "estimatedCost"]
       }
     },
@@ -376,12 +370,10 @@ const getBaseTravelPlanSchema = () => ({
               title: { type: Type.STRING, description: "A concise title for the link." },
               url: { type: Type.STRING, description: "The full, valid URL for the resource." }
           },
-          propertyOrdering: ["title", "url"],
           required: ["title", "url"]
       }
     }
   },
-  propertyOrdering: ["itinerary", "cityAccommodationCosts", "optimizationSuggestions", "officialLinks"],
   required: ["itinerary", "optimizationSuggestions", "officialLinks"],
 });
 
