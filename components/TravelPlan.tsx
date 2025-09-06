@@ -1,12 +1,17 @@
 
 
 
+
+
+
 import React, { useState, useMemo } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import type { TravelPlan, DestinationSuggestion, DailyPlan, ItineraryLocation } from '../types';
+import type { TravelPlan, DestinationSuggestion, DailyPlan, ItineraryLocation, PackingListCategory } from '../types';
 import InteractiveMap from './InteractiveMap';
 import TripTimelineChart from './TripTimelineChart';
+import PackingListModal from './PackingListModal';
+import { getPackingList } from '../services/geminiService';
 
 interface TravelPlanProps {
   plan: TravelPlan;
@@ -19,6 +24,10 @@ interface TravelPlanProps {
   onOpenSaveModal: () => void;
   isPlanModified: boolean;
   isLoading: boolean;
+  onError: (message: string) => void;
+  onUpdatePackingList: (list: PackingListCategory[]) => void;
+  onTogglePackingItem: (item: string) => void;
+  onAddItemToPackingList: (categoryName: string, item: string) => void;
 }
 
 // --- Icon Components ---
@@ -376,7 +385,7 @@ const DailyPlanCard: React.FC<DailyPlanCardProps> = ({ dailyPlan, dayIndex, drag
 
 // --- Main Travel Plan Component ---
 
-const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onReset, onBack, onDeleteActivity, onReorderActivities, onRebuildPlan, onOpenSaveModal, isPlanModified, isLoading }) => {
+const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onReset, onBack, onDeleteActivity, onReorderActivities, onRebuildPlan, onOpenSaveModal, isPlanModified, isLoading, onError, onUpdatePackingList, onTogglePackingItem, onAddItemToPackingList }) => {
     const totalEstimatedCost = destination.averageCost > 0
         ? Math.round((destination.averageCost / 7) * plan.itinerary.length)
         : 0;
@@ -388,6 +397,9 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onR
     const [isMapModalOpen, setIsMapModalOpen] = useState(false);
     const [mapDayIndex, setMapDayIndex] = useState<number | null>(null);
     const [highlightedActivityId, setHighlightedActivityId] = useState<string | null>(null);
+    const [isPackingListModalOpen, setIsPackingListModalOpen] = useState(false);
+    const [isPackingListLoading, setIsPackingListLoading] = useState(false);
+
 
     const showRebuildButton = isPlanModified || refinementNotes.trim() !== '';
 
@@ -458,6 +470,26 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onR
         }
     };
     
+    const handlePackingListButtonClick = async () => {
+        if (plan.packingList && plan.packingList.length > 0) {
+            setIsPackingListModalOpen(true);
+            return;
+        }
+
+        setIsPackingListLoading(true);
+        onError(''); // Clear previous errors
+        try {
+            const allActivities = plan.itinerary.flatMap(day => day.activities);
+            const list = await getPackingList(destination.name, plan.itinerary.length, allActivities);
+            onUpdatePackingList(list);
+            setIsPackingListModalOpen(true);
+        } catch (err) {
+            onError(err instanceof Error ? err.message : 'Failed to generate packing list.');
+        } finally {
+            setIsPackingListLoading(false);
+        }
+    };
+
     const handleDownloadPdf = async () => {
         const contentToExport = document.getElementById('pdf-export-content');
         if (!contentToExport) {
@@ -578,7 +610,7 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onR
                             pdf.setFontSize(pdfFontSize);
                             
                             // Pass the 'invisible' rendering mode directly to the text call
-                            pdf.text(text, pdfX, yOnPage, { renderingMode: 'invisible' });
+                            pdf.text(text, pdfX, yOnPage, { renderingMode: 'invisible' } as any);
                         }
                     }
                 });
@@ -774,7 +806,7 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onR
                 <div className="mt-12 flex flex-col sm:flex-row flex-wrap justify-center items-center gap-4">
                     <button
                         onClick={onBack}
-                        disabled={isLoading || isDownloading}
+                        disabled={isLoading || isDownloading || isPackingListLoading}
                         className="w-full sm:w-auto bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
@@ -786,7 +818,7 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onR
                     {showRebuildButton && (
                          <button
                             onClick={handleRebuildClick}
-                            disabled={isLoading || isDownloading}
+                            disabled={isLoading || isDownloading || isPackingListLoading}
                             className="w-full sm:w-auto bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                            Rebuild Itinerary
@@ -794,21 +826,28 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onR
                     )}
                     <button
                         onClick={onOpenSaveModal}
-                        disabled={isLoading || isDownloading}
+                        disabled={isLoading || isDownloading || isPackingListLoading}
                         className="w-full sm:w-auto bg-teal-600 hover:bg-teal-500 text-white font-bold py-3 px-6 rounded-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                         Export Plan to File
                     </button>
+                    <button
+                        onClick={handlePackingListButtonClick}
+                        disabled={isLoading || isDownloading || isPackingListLoading}
+                        className="w-full sm:w-auto bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isPackingListLoading ? 'Generating List...' : (plan.packingList && plan.packingList.length > 0 ? 'View Packing List' : 'Generate Packing List')}
+                    </button>
                      <button
                         onClick={handleDownloadPdf}
-                        disabled={isLoading || isDownloading}
+                        disabled={isLoading || isDownloading || isPackingListLoading}
                         className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {isDownloading ? 'Generating PDF...' : 'Download as PDF'}
                     </button>
                     <button
                         onClick={onReset}
-                        disabled={isLoading || isDownloading}
+                        disabled={isLoading || isDownloading || isPackingListLoading}
                         className="w-full sm:w-auto bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         Start a New Plan
@@ -845,6 +884,19 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onR
                         />
                     </div>
                 </div>
+            )}
+            
+            {/* Packing List Modal */}
+            {plan.packingList && plan.packingList.length > 0 && (
+                <PackingListModal
+                    isOpen={isPackingListModalOpen}
+                    onClose={() => setIsPackingListModalOpen(false)}
+                    list={plan.packingList}
+                    destinationName={destination.name}
+                    checkedItems={plan.checkedPackingItems || {}}
+                    onToggleItem={onTogglePackingItem}
+                    onAddItem={onAddItemToPackingList}
+                />
             )}
         </>
     );

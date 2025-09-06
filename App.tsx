@@ -1,7 +1,5 @@
-
-
 import React, { useState, useEffect, useRef } from 'react';
-import type { AppStep, DestinationSuggestion, TravelPlan, ItineraryStyle, DailyPlan, ItineraryLocation, SavedPlan } from './types';
+import type { AppStep, DestinationSuggestion, TravelPlan, ItineraryStyle, DailyPlan, ItineraryLocation, SavedPlan, PackingListCategory } from './types';
 import { getTravelSuggestions, getTravelPlan, getDirectCountryInfo, rebuildTravelPlan, getOffBeatSuggestions, getComprehensiveTravelPlan } from './services/geminiService';
 import TripInputForm from './components/TripInputForm';
 import DestinationSuggestions from './components/DestinationSuggestions';
@@ -170,6 +168,60 @@ const App: React.FC = () => {
       }
   };
 
+  const handleUpdatePackingList = (list: PackingListCategory[]) => {
+    if (!plan) return;
+    setPlan(prevPlan => {
+      if (!prevPlan) return null;
+      return {
+        ...prevPlan,
+        packingList: list,
+        checkedPackingItems: {}, // Reset checked items when a new list is generated
+      };
+    });
+  };
+
+  const handleTogglePackingItem = (item: string) => {
+    if (!plan) return;
+    setPlan(prevPlan => {
+      if (!prevPlan) return null;
+      const newCheckedItems = { ...(prevPlan.checkedPackingItems || {}) };
+      newCheckedItems[item] = !newCheckedItems[item];
+      return { 
+        ...prevPlan,
+        checkedPackingItems: newCheckedItems 
+      };
+    });
+  };
+
+  const handleAddItemToPackingList = (categoryName: string, item: string) => {
+    if (!plan?.packingList) return;
+
+    setPlan(prevPlan => {
+        if (!prevPlan || !prevPlan.packingList) return prevPlan;
+
+        const itemExists = prevPlan.packingList.some(cat => cat.items.includes(item));
+        if (itemExists) {
+            console.warn(`Item "${item}" already exists in the packing list.`);
+            return prevPlan;
+        }
+
+        const newPackingList = prevPlan.packingList.map(category => {
+            if (category.categoryName === categoryName) {
+                return {
+                    ...category,
+                    items: [...category.items, item].sort()
+                };
+            }
+            return category;
+        });
+
+        return {
+            ...prevPlan,
+            packingList: newPackingList
+        };
+    });
+  };
+
   const handleSavePlanToFile = (name: string) => {
     if (!plan || !selectedDestination) return;
 
@@ -311,6 +363,10 @@ const App: React.FC = () => {
             onOpenSaveModal={() => setIsSaveModalOpen(true)}
             isPlanModified={isPlanModified}
             isLoading={isLoading}
+            onError={setError}
+            onUpdatePackingList={handleUpdatePackingList}
+            onTogglePackingItem={handleTogglePackingItem}
+            onAddItemToPackingList={handleAddItemToPackingList}
             />;
         }
         handleReset();

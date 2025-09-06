@@ -1,4 +1,5 @@
 
+
 export interface CostBreakdown {
   accommodation: number;
   food: number;
@@ -70,6 +71,8 @@ export interface TravelPlan {
   optimizationSuggestions: string;
   officialLinks?: OfficialLink[];
   cityAccommodationCosts?: CityAccommodationCost[];
+  packingList?: PackingListCategory[];
+  checkedPackingItems?: Record<string, boolean>;
 }
 
 export interface SavedPlan {
@@ -83,3 +86,8 @@ export interface SavedPlan {
 export type AppStep = 'input' | 'suggestions' | 'duration' | 'plan';
 
 export type ItineraryStyle = 'Mixed' | 'Touristy' | 'Off-beat';
+
+export interface PackingListCategory {
+  categoryName: string;
+  items: string[];
+}

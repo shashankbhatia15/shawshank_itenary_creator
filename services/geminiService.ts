@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import type { DestinationSuggestion, TravelPlan, ItineraryStyle, CostBreakdown, DailyPlan, ItineraryLink } from '../types';
+import type { DestinationSuggestion, TravelPlan, ItineraryStyle, CostBreakdown, DailyPlan, ItineraryLocation, PackingListCategory } from '../types';
 
 if (!process.env.API_KEY) {
   throw new Error("API_KEY environment variable is not set");
@@ -226,7 +226,7 @@ export async function getOffBeatSuggestions(): Promise<DestinationSuggestion[]> 
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
-      contents: `You are an expert travel agent specializing in unique, off-the-beaten-path destinations. Suggest 5 countries that are considered safe for tourists but are less explored and not typically on mainstream "top 10" travel lists. For each country, provide:
+      contents: `You are an expert travel agent specializing in unique, off-the-beaten-path destinations. Suggest 5 countries that are considered safe for tourists but are not typically on mainstream "top 10" travel lists. For each country, provide:
 1. Its name.
 2. A short, compelling description (2-3 sentences) of why it's a great off-beat destination.
 3. A summary of visa requirements for Indian citizens (mention e-visa/visa on arrival).
@@ -577,5 +577,54 @@ A user has modified their itinerary and wants you to re-optimize it.
         return plan;
     } catch (error) {
         throw new Error(parseApiError(error, "rebuilding the travel plan"));
+    }
+}
+
+export async function getPackingList(destination: string, duration: number, activities: ItineraryLocation[]): Promise<PackingListCategory[]> {
+    const activitySummary = [...new Set(activities.map(a => a.type === 'Off-beat' ? a.name : a.type))].join(', ');
+    const cacheKey = `packing-list:${destination}:${duration}:${activitySummary}`;
+    const cachedData = getFromCache<PackingListCategory[]>(cacheKey);
+    if (cachedData) {
+        return cachedData;
+    }
+
+    const prompt = `You are an expert travel packer. A user is planning a ${duration}-day trip to ${destination}.
+Their planned activities include: ${activitySummary}.
+
+Generate a comprehensive, personalized packing list.
+- Base suggestions on the typical climate and weather of ${destination}.
+- Recommend quantities appropriate for a ${duration}-day trip (e.g., "5 T-shirts").
+- Categorize items into logical groups: "Documents & Money", "Clothing", "Toiletries", "Electronics", and "Miscellaneous".
+- Do not add a 'Notes' or 'Tips' category. Only include physical items.`;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            categoryName: { type: Type.STRING },
+                            items: {
+                                type: Type.ARRAY,
+                                items: { type: Type.STRING }
+                            }
+                        },
+                        required: ["categoryName", "items"]
+                    }
+                },
+            },
+        });
+
+        const jsonText = response.text.trim();
+        const packingList: PackingListCategory[] = JSON.parse(jsonText);
+        setInCache(cacheKey, packingList);
+        return packingList;
+    } catch (error) {
+        throw new Error(parseApiError(error, "generating the packing list"));
     }
 }
