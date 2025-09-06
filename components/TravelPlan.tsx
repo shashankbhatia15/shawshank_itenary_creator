@@ -1,7 +1,6 @@
 
 
 
-
 import React, { useState, useMemo } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -579,7 +578,7 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onR
                             pdf.setFontSize(pdfFontSize);
                             
                             // Pass the 'invisible' rendering mode directly to the text call
-                            pdf.text(text, pdfX, yOnPage, { renderingMode: 'invisible' } as any);
+                            pdf.text(text, pdfX, yOnPage, { renderingMode: 'invisible' });
                         }
                     }
                 });
