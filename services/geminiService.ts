@@ -3,13 +3,30 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { DestinationSuggestion, TravelPlan, ItineraryStyle, CostBreakdown, DailyPlan } from '../types';
 
-if (!process.env.API_KEY) {
-  throw new Error("API_KEY environment variable is not set");
-}
+// Store the client instance to avoid re-creating it on every call.
+let aiInstance: GoogleGenAI | null = null;
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+/**
+ * Initializes and returns the GoogleGenAI client instance.
+ * Throws an error if the API key is not configured.
+ */
+const getAiClient = (): GoogleGenAI => {
+  if (aiInstance) {
+    return aiInstance;
+  }
+
+  if (!process.env.API_KEY) {
+    // This error will be caught by the calling function's try/catch block in App.tsx
+    throw new Error("API_KEY environment variable is not set. Please create a .env file and add your API key as described in the README.");
+  }
+
+  aiInstance = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  return aiInstance;
+};
+
 
 export async function getDirectCountryInfo(countryName: string): Promise<{ description: string; visaInfo: string; averageCost: number; costBreakdown: CostBreakdown; }> {
+  const ai = getAiClient();
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
@@ -56,6 +73,7 @@ export async function getDirectCountryInfo(countryName: string): Promise<{ descr
 
 
 export async function getTravelSuggestions(budget: string, timeOfYear: string, continent: string): Promise<DestinationSuggestion[]> {
+  const ai = getAiClient();
   try {
     const continentQuery = continent === 'Any' ? '' : `within ${continent}`;
     
@@ -107,6 +125,7 @@ export async function getTravelSuggestions(budget: string, timeOfYear: string, c
 }
 
 export async function getOffBeatSuggestions(): Promise<DestinationSuggestion[]> {
+  const ai = getAiClient();
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
@@ -214,7 +233,7 @@ const getBaseTravelPlanSchema = () => ({
 
 
 export async function getTravelPlan(country: string, duration: number, style: ItineraryStyle, additionalNotes: string): Promise<TravelPlan> {
-  
+  const ai = getAiClient();
   let styleInstruction = "The itinerary should include a good mix of both popular tourist attractions and off-beat local experiences.";
   if (style === 'Touristy') {
     styleInstruction = "The itinerary should focus exclusively on popular, well-known tourist attractions.";
@@ -270,6 +289,7 @@ Your task is to create a highly optimized and logical travel itinerary.
 }
 
 export async function rebuildTravelPlan(country: string, duration: number, style: ItineraryStyle, existingActivities: DailyPlan[], additionalNotes: string): Promise<TravelPlan> {
+    const ai = getAiClient();
     let styleInstruction = "The itinerary should include a good mix of both popular tourist attractions and off-beat local experiences.";
     if (style === 'Touristy') {
         styleInstruction = "The itinerary should focus exclusively on popular, well-known tourist attractions.";
