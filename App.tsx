@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
-import type { AppStep, DestinationSuggestion, TravelPlan, ItineraryStyle, DailyPlan, ItineraryLocation } from './types';
-import { getTravelSuggestions, getTravelPlan, getDirectCountryInfo, rebuildTravelPlan, getOffBeatSuggestions } from './services/geminiService';
+
+
+import React, { useState, useEffect, useRef } from 'react';
+import type { AppStep, DestinationSuggestion, TravelPlan, ItineraryStyle, DailyPlan, ItineraryLocation, SavedPlan } from './types';
+import { getTravelSuggestions, getTravelPlan, getDirectCountryInfo, rebuildTravelPlan, getOffBeatSuggestions, getComprehensiveTravelPlan } from './services/geminiService';
 import TripInputForm from './components/TripInputForm';
 import DestinationSuggestions from './components/DestinationSuggestions';
 import TravelPlanComponent from './components/TravelPlan';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorDisplay from './components/ErrorDisplay';
 import DurationInput from './components/DurationInput';
+import SavePlanModal from './components/SavePlanModal';
 
 const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>('input');
@@ -16,11 +19,12 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPlanModified, setIsPlanModified] = useState(false);
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // State to hold original plan inputs for rebuild
   const [itineraryStyle, setItineraryStyle] = useState<ItineraryStyle>('Mixed');
   const [additionalNotes, setAdditionalNotes] = useState('');
-
 
   const handleGetSuggestions = async (budget: string, timeOfYear: string, continent: string, country: string) => {
     setError(null);
@@ -80,7 +84,12 @@ const App: React.FC = () => {
     setItineraryStyle(style);
     setAdditionalNotes(notes);
     try {
-      const result = await getTravelPlan(selectedDestination.name, duration, style, notes);
+      let result;
+      if (duration === 0) { // Special value for AI-decided duration
+        result = await getComprehensiveTravelPlan(selectedDestination.name, style, notes);
+      } else {
+        result = await getTravelPlan(selectedDestination.name, duration, style, notes);
+      }
       
       // Add unique IDs to each activity for stable rendering and D&D
       const planWithIds: TravelPlan = {
@@ -161,6 +170,78 @@ const App: React.FC = () => {
       }
   };
 
+  const handleSavePlanToFile = (name: string) => {
+    if (!plan || !selectedDestination) return;
+
+    const planToSave: SavedPlan = {
+        id: crypto.randomUUID(),
+        name: name,
+        plan,
+        destination: selectedDestination,
+        savedAt: new Date().toISOString(),
+    };
+
+    const blob = new Blob([JSON.stringify(planToSave, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    
+    // Sanitize the user-provided name for use in a filename
+    const sanitizedName = name.replace(/[^a-z0-9\s-]/gi, '').replace(/\s+/g, '_').toLowerCase();
+    const fileName = `${sanitizedName || 'itinerary'}.json`;
+
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleLoadPlanFromFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const text = e.target?.result;
+            if (typeof text !== 'string') throw new Error("File content is not text");
+            
+            const loadedData = JSON.parse(text) as SavedPlan;
+            
+            // Basic validation
+            if (loadedData.plan && loadedData.destination && loadedData.plan.itinerary) {
+                const planWithIds: TravelPlan = {
+                    ...loadedData.plan,
+                    itinerary: loadedData.plan.itinerary.map((day: DailyPlan) => ({
+                        ...day,
+                        activities: day.activities.map((activity: ItineraryLocation) => ({
+                            ...activity,
+                            id: activity.id || crypto.randomUUID(),
+                        })),
+                    })),
+                };
+
+                setPlan(planWithIds);
+                setSelectedDestination(loadedData.destination);
+                setStep('plan');
+                setError(null);
+            } else {
+                throw new Error("Invalid itinerary file format.");
+            }
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to read or parse the file.");
+        }
+    };
+    reader.onerror = () => {
+        setError("Failed to read the file.");
+    };
+    reader.readAsText(file);
+
+    // Reset the input value to allow loading the same file again
+    event.target.value = ''; 
+  };
+
 
   const handleReset = () => {
     setStep('input');
@@ -203,7 +284,12 @@ const App: React.FC = () => {
     
     switch (step) {
       case 'input':
-        return <TripInputForm onGetSuggestions={handleGetSuggestions} onGetOffBeatSuggestions={handleGetOffBeatSuggestions} isLoading={isLoading} />;
+        return <TripInputForm 
+            onGetSuggestions={handleGetSuggestions} 
+            onGetOffBeatSuggestions={handleGetOffBeatSuggestions} 
+            isLoading={isLoading} 
+            onLoadFromFileClick={() => fileInputRef.current?.click()}
+        />;
       case 'suggestions':
         return <DestinationSuggestions suggestions={suggestions} onSelectDestination={handleSelectDestination} isLoading={isLoading} onBack={handleBack} />;
       case 'duration':
@@ -222,6 +308,7 @@ const App: React.FC = () => {
             onDeleteActivity={handleDeleteActivity}
             onReorderActivities={handleReorderActivities}
             onRebuildPlan={handleRebuildPlan}
+            onOpenSaveModal={() => setIsSaveModalOpen(true)}
             isPlanModified={isPlanModified}
             isLoading={isLoading}
             />;
@@ -229,12 +316,33 @@ const App: React.FC = () => {
         handleReset();
         return null;
       default:
-        return <TripInputForm onGetSuggestions={handleGetSuggestions} onGetOffBeatSuggestions={handleGetOffBeatSuggestions} isLoading={isLoading} />;
+        return <TripInputForm 
+            onGetSuggestions={handleGetSuggestions} 
+            onGetOffBeatSuggestions={handleGetOffBeatSuggestions} 
+            isLoading={isLoading} 
+            onLoadFromFileClick={() => fileInputRef.current?.click()}
+        />;
     }
   }
 
   return (
     <main className="min-h-screen w-full flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 relative">
+        <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleLoadPlanFromFile}
+            accept=".json,application/json"
+            className="hidden"
+            aria-hidden="true"
+        />
+        <SavePlanModal
+            isOpen={isSaveModalOpen}
+            onClose={() => setIsSaveModalOpen(false)}
+            onSave={handleSavePlanToFile}
+            defaultName={
+                selectedDestination ? `Trip to ${selectedDestination.name}` : 'My Itinerary'
+            }
+        />
         <div className="absolute top-0 left-0 w-full h-full bg-slate-900 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(14,165,233,0.3),rgba(255,255,255,0))] -z-10"></div>
         <header className="w-full max-w-6xl mx-auto text-center mb-12">
             <h1 className="text-5xl md:text-6xl font-extrabold text-white tracking-tight">

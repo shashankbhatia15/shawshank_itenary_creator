@@ -1,3 +1,4 @@
+
 export interface CostBreakdown {
   accommodation: number;
   food: number;
@@ -13,14 +14,36 @@ export interface DestinationSuggestion {
   costBreakdown: CostBreakdown;
 }
 
+export interface ItineraryLink {
+  title: string;
+  url: string;
+}
+
 export interface ItineraryLocation {
   id: string; // Unique identifier for each activity
   name: string;
   description: string;
+  city: string;
   type: 'Touristy' | 'Off-beat';
-  link: string;
+  links: ItineraryLink[];
   averageCost: number;
   costBreakdown: CostBreakdown;
+  lat: number;
+  lng: number;
+  duration?: string;
+}
+
+export interface TransportOption {
+  mode: string;
+  duration: string;
+  cost: number;
+  description?: string;
+}
+
+export interface TravelInfo {
+  fromCity: string;
+  toCity: string;
+  options: TransportOption[];
 }
 
 export interface DailyPlan {
@@ -28,6 +51,7 @@ export interface DailyPlan {
   title: string;
   activities: ItineraryLocation[];
   keepInMind: string;
+  travelInfo?: TravelInfo;
 }
 
 export interface OfficialLink {
@@ -35,10 +59,25 @@ export interface OfficialLink {
   url: string;
 }
 
+export interface CityAccommodationCost {
+  city: string;
+  estimatedCost: number;
+  nights: number;
+}
+
 export interface TravelPlan {
   itinerary: DailyPlan[];
   optimizationSuggestions: string;
   officialLinks?: OfficialLink[];
+  cityAccommodationCosts?: CityAccommodationCost[];
+}
+
+export interface SavedPlan {
+  id: string;
+  name: string;
+  plan: TravelPlan;
+  destination: DestinationSuggestion;
+  savedAt: string; // ISO string date
 }
 
 export type AppStep = 'input' | 'suggestions' | 'duration' | 'plan';

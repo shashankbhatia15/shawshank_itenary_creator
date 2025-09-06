@@ -4,9 +4,10 @@ interface TripInputFormProps {
   onGetSuggestions: (budget: string, timeOfYear: string, continent: string, country: string) => void;
   onGetOffBeatSuggestions: () => void;
   isLoading: boolean;
+  onLoadFromFileClick: () => void;
 }
 
-const TripInputForm: React.FC<TripInputFormProps> = ({ onGetSuggestions, onGetOffBeatSuggestions, isLoading }) => {
+const TripInputForm: React.FC<TripInputFormProps> = ({ onGetSuggestions, onGetOffBeatSuggestions, isLoading, onLoadFromFileClick }) => {
   const [budget, setBudget] = useState('Budget-friendly');
   const [timeOfYear, setTimeOfYear] = useState('Spring (Mar-May)');
   const [continent, setContinent] = useState('Any');
@@ -107,6 +108,29 @@ const TripInputForm: React.FC<TripInputFormProps> = ({ onGetSuggestions, onGetOf
         >
           {isLoading ? 'Searching...' : 'Find Destinations'}
         </button>
+
+        <div className="relative">
+            <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                <div className="w-full border-t border-slate-600" />
+            </div>
+            <div className="relative flex justify-center">
+                <span className="bg-slate-800 px-2 text-sm text-slate-400">OR</span>
+            </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={onLoadFromFileClick}
+          disabled={isLoading}
+          className="w-full bg-teal-600 hover:bg-teal-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 flex items-center justify-center gap-2"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M5.5 13a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.977A4.5 4.5 0 1113.5 13H11V9.414l-1.293 1.293a1 1 0 01-1.414-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L13 9.414V13h-1.5z" />
+            <path d="M9 13h2v5a1 1 0 11-2 0v-5z" />
+          </svg>
+          Load Plan from File
+        </button>
+        
 
         <div className="relative">
             <div className="absolute inset-0 flex items-center" aria-hidden="true">

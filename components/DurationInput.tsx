@@ -13,11 +13,13 @@ const DurationInput: React.FC<DurationInputProps> = ({ destination, onGetPlan, i
     const [duration, setDuration] = useState(7);
     const [style, setStyle] = useState<ItineraryStyle>('Mixed');
     const [additionalNotes, setAdditionalNotes] = useState('');
+    const [letAiDecide, setLetAiDecide] = useState(false);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (duration > 0 && duration <= 30) {
-            onGetPlan(duration, style, additionalNotes);
+        const finalDuration = letAiDecide ? 0 : duration;
+        if (finalDuration >= 0 && finalDuration <= 30) {
+            onGetPlan(finalDuration, style, additionalNotes);
         }
     };
 
@@ -48,10 +50,34 @@ const DurationInput: React.FC<DurationInputProps> = ({ destination, onGetPlan, i
                         max="30"
                         value={duration}
                         onChange={(e) => setDuration(parseInt(e.target.value, 10))}
-                        className="w-full bg-slate-700 border border-slate-600 rounded-lg py-3 px-4 text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none transition"
-                        disabled={isLoading}
+                        className="w-full bg-slate-700 border border-slate-600 rounded-lg py-3 px-4 text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={isLoading || letAiDecide}
                     />
                 </div>
+
+                <div className="relative flex items-start">
+                    <div className="flex h-6 items-center">
+                        <input
+                            id="ai-duration"
+                            aria-describedby="ai-duration-description"
+                            name="ai-duration"
+                            type="checkbox"
+                            checked={letAiDecide}
+                            onChange={(e) => setLetAiDecide(e.target.checked)}
+                            className="h-4 w-4 rounded border-slate-500 bg-slate-700 text-cyan-600 focus:ring-cyan-600 disabled:opacity-50"
+                            disabled={isLoading}
+                        />
+                    </div>
+                    <div className="ml-3 text-sm leading-6">
+                        <label htmlFor="ai-duration" className="font-medium text-slate-300">
+                           Let AI Suggest Duration
+                        </label>
+                        <p id="ai-duration-description" className="text-slate-400">
+                            Check this for a comprehensive full-country tour.
+                        </p>
+                    </div>
+                </div>
+
                 <div>
                     <label htmlFor="style" className="block text-sm font-medium text-slate-300 mb-2">
                         What's your travel style?
