@@ -23,7 +23,8 @@ An intelligent, AI-powered travel planner that suggests destinations based on yo
     -   **Travel Logistics**: The plan automatically includes travel information between cities with multiple transport options (flight, train, bus), including estimated costs and durations.
     -   **Daily Tips**: Each day includes a "Keep in Mind" section with practical advice, dos and don'ts, and local scam warnings.
 -   **Interactive Map Visualization**: Click the "View on Map" button for any day to see all activities pinned on an interactive map, helping you visualize your route. Clicking a map marker highlights the activity in your plan.
--   **PDF Export**: Download your final itinerary as a clean, print-ready PDF, complete with a cover page and preserved clickable links for online resources.
+-   **AI-Generated Packing List**: Get a personalized, categorized packing list for your specific destination and trip length. You can check off items as you pack and even add your own custom items to the list.
+-   **PDF Export**: Download your final itinerary as a clean, print-ready PDF, complete with a cover page, summary, and preserved clickable links for online resources.
 -   **Smart Caching**: API requests are cached in your browser's local storage to provide instant results for recent searches and save on API usage.
 
 

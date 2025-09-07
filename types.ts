@@ -47,11 +47,16 @@ export interface TravelInfo {
   options: TransportOption[];
 }
 
+export interface KeepInMindItem {
+  type: 'do' | 'dont' | 'warning' | 'info';
+  tip: string;
+}
+
 export interface DailyPlan {
   day: number;
   title: string;
   activities: ItineraryLocation[];
-  keepInMind: string;
+  keepInMind: KeepInMindItem[];
   travelInfo?: TravelInfo;
 }
 

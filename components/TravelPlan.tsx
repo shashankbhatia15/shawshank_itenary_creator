@@ -1,12 +1,7 @@
 
 
-
-
-
-
 import React, { useState, useMemo } from 'react';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 import type { TravelPlan, DestinationSuggestion, DailyPlan, ItineraryLocation, PackingListCategory } from '../types';
 import InteractiveMap from './InteractiveMap';
 import TripTimelineChart from './TripTimelineChart';
@@ -105,6 +100,31 @@ const InfoIcon = () => (
 const StopwatchIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+);
+
+const CheckCircleIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+    </svg>
+);
+
+const XCircleIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+    </svg>
+);
+
+const ExclamationTriangleIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.21 3.03-1.742 3.03H4.42c-1.532 0-2.492-1.696-1.742-3.03l5.58-9.92zM10 13a1 1 0 110-2 1 1 0 010 2zm-1-8a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clipRule="evenodd" />
+    </svg>
+);
+
+const LightbulbTipIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+      <path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 5.05A1 1 0 003.636 6.464l.707.707a1 1 0 001.414-1.414l-.707-.707zM4 10a1 1 0 01-1 1H2a1 1 0 110-2h1a1 1 0 011 1zM10 18a1 1 0 001-1v-1a1 1 0 10-2 0v1a1 1 0 001 1zM8.94 15.06a1 1 0 00-1.414 1.414l.707.707a1 1 0 001.414-1.414l-.707-.707zM15.061 13.94a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707z" />
+      <path d="M10 4a6 6 0 100 12 6 6 0 000-12zM9 14a1 1 0 112 0 1 1 0 01-2 0z" />
     </svg>
 );
 
@@ -359,20 +379,45 @@ const DailyPlanCard: React.FC<DailyPlanCardProps> = ({ dailyPlan, dayIndex, drag
                 ))}
             </div>
 
-            {dailyPlan.keepInMind && (
-                <div className="mt-6 p-4 bg-slate-800/70 rounded-lg border border-yellow-500/30">
-                    <div className="flex items-center mb-2">
+            {dailyPlan.keepInMind && dailyPlan.keepInMind.length > 0 && (
+                <div className="mt-6 p-4 bg-slate-800/70 rounded-lg border border-slate-700">
+                    <div className="flex items-center mb-3">
                         <InfoIcon />
                         <h4 className="font-bold text-yellow-300">Keep In Mind</h4>
                     </div>
-                    <ul className="list-none pl-4 space-y-1">
-                        {dailyPlan.keepInMind.split('\n').map((item, index) => {
-                            if (!item.trim()) return null;
-                            const text = item.replace(/^\s*\*\s*/, ''); // Remove markdown bullet
+                    <ul className="space-y-3">
+                        {dailyPlan.keepInMind.map((item, index) => {
+                            let IconComponent;
+                            let iconColor;
+
+                            switch (item.type) {
+                                case 'do':
+                                    IconComponent = CheckCircleIcon;
+                                    iconColor = 'text-green-400';
+                                    break;
+                                case 'dont':
+                                    IconComponent = XCircleIcon;
+                                    iconColor = 'text-red-400';
+                                    break;
+                                case 'warning':
+                                    IconComponent = ExclamationTriangleIcon;
+                                    iconColor = 'text-amber-400';
+                                    break;
+                                case 'info':
+                                default:
+                                    IconComponent = LightbulbTipIcon;
+                                    iconColor = 'text-sky-400';
+                                    break;
+                            }
+
                             return (
-                                <li key={index} className="flex items-start">
-                                    <span className="text-yellow-400 mr-2 mt-1">&#8227;</span>
-                                    <span className="text-slate-300 text-sm">{text}</span>
+                                <li key={index} className="flex items-start gap-3">
+                                    <div className={`mt-0.5 flex-shrink-0 ${iconColor}`}>
+                                        <IconComponent />
+                                    </div>
+                                    <span className="text-slate-300 text-sm">
+                                        {item.tip}
+                                    </span>
                                 </li>
                             );
                         })}
@@ -491,144 +536,387 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onR
     };
 
     const handleDownloadPdf = async () => {
-        const contentToExport = document.getElementById('pdf-export-content');
-        if (!contentToExport) {
-            console.error("PDF export content wrapper not found.");
-            return;
-        }
-    
         setIsDownloading(true);
-    
         try {
-            const pdf = new jsPDF({
-                orientation: 'p',
-                unit: 'pt',
-                format: 'a4'
-            });
-            
+            const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
             const pdfWidth = pdf.internal.pageSize.getWidth();
             const pdfHeight = pdf.internal.pageSize.getHeight();
             const margin = 40;
+            const contentWidth = pdfWidth - margin * 2;
     
-            // --- Cover Page ---
-            pdf.setFillColor('#0f172a'); // bg-slate-900
-            pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
-            pdf.setTextColor('#e2e8f0'); // text-slate-200
+            // --- Color Palette for Light Theme ---
+            const PRIMARY_TEXT_COLOR = '#1f2937'; // slate-800
+            const SECONDARY_TEXT_COLOR = '#6b7280'; // slate-500
+            const HEADER_COLOR = '#0369a1'; // sky-700
+            const LINK_COLOR = '#0ea5e9'; // sky-500
+            const BORDER_COLOR = '#e5e7eb'; // slate-200
+            const WARNING_COLOR = '#b45309'; // amber-700
+    
+            let yPos = margin;
+    
+            const checkAndAddPage = (neededHeight = 20) => {
+                if (yPos + neededHeight > pdfHeight - margin) {
+                    pdf.addPage();
+                    yPos = margin;
+                    return true; // page was added
+                }
+                return false;
+            };
+    
+            // --- 1. Cover Page ---
+            pdf.setTextColor(PRIMARY_TEXT_COLOR);
             pdf.setFontSize(32);
             pdf.setFont('helvetica', 'bold');
             pdf.text(`Your Trip to ${destination.name}`, pdfWidth / 2, pdfHeight / 2 - 20, { align: 'center' });
             pdf.setFontSize(18);
             pdf.setFont('helvetica', 'normal');
-            pdf.setTextColor('#94a3b8'); // text-slate-400
+            pdf.setTextColor(SECONDARY_TEXT_COLOR);
             pdf.text(`${plan.itinerary.length} Day Adventure`, pdfWidth / 2, pdfHeight / 2 + 10, { align: 'center' });
-            
-            // --- Itinerary Content ---
-            const canvas = await html2canvas(contentToExport, {
-                scale: 2,
-                useCORS: true,
-                backgroundColor: '#1e293b' // Match the card background color
-            });
     
-            const contentWidth = pdfWidth - margin * 2;
-            const imgData = canvas.toDataURL('image/png');
-            const imgProps = pdf.getImageProperties(imgData);
-            const imgHeight = (imgProps.height * contentWidth) / imgProps.width;
-            
-            const pageContentHeight = pdfHeight - margin * 2;
-            let heightLeft = imgHeight;
-            let position = 0;
-    
+            // --- 2. Summary Page (Text-based) ---
             pdf.addPage();
+            yPos = margin;
+            
+            pdf.setFontSize(24);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setTextColor(PRIMARY_TEXT_COLOR);
+            pdf.text("Trip Summary", pdfWidth / 2, yPos, { align: 'center' });
+            yPos += 40;
     
-            // Add the image, slicing it across pages by adjusting the y-position
-            while (heightLeft > 0) {
-                pdf.addImage(imgData, 'PNG', margin, position + margin, contentWidth, imgHeight);
-                heightLeft -= pageContentHeight;
+            // --- Trip Route ---
+            const citiesVisited = plan.itinerary
+                .flatMap(day => day.activities.map(activity => activity.city))
+                .reduce((uniqueCities, city) => {
+                    if (city && (uniqueCities.length === 0 || uniqueCities[uniqueCities.length - 1] !== city)) {
+                        uniqueCities.push(city);
+                    }
+                    return uniqueCities;
+                }, [] as string[]);
+            
+            if (citiesVisited.length > 1) {
+                checkAndAddPage(60);
+                pdf.setFontSize(16);
+                pdf.setFont('helvetica', 'bold');
+                pdf.setTextColor(HEADER_COLOR);
+                pdf.text('Trip Route', margin, yPos);
+                yPos += 25;
                 
-                if (heightLeft > 0) {
-                    position -= pageContentHeight;
-                    pdf.addPage();
-                }
+                pdf.setFontSize(11);
+                pdf.setTextColor(PRIMARY_TEXT_COLOR);
+                const routeText = citiesVisited.join(' to ');
+                const splitRoute = pdf.splitTextToSize(routeText, contentWidth);
+                pdf.text(splitRoute, margin, yPos);
+                yPos += splitRoute.length * 15 + 15;
             }
     
-            const contentRect = contentToExport.getBoundingClientRect();
-            const scale = contentWidth / contentRect.width;
-
-            // --- Overlay Clickable Links ---
-            const links = contentToExport.querySelectorAll('a');
-            links.forEach(link => {
-                const linkRect = link.getBoundingClientRect();
-                const href = link.getAttribute('href');
-                
-                if (href && href.startsWith('http')) {
-                    const linkTopInCanvas = (linkRect.top - contentRect.top) * scale;
-                    const pageNum = Math.floor(linkTopInCanvas / pageContentHeight);
-                    const yOnPage = (linkTopInCanvas % pageContentHeight) + margin;
-                    
-                    pdf.setPage(pageNum + 2);
+            // --- Accommodation Costs ---
+            if (plan.cityAccommodationCosts && plan.cityAccommodationCosts.length > 0) {
+                checkAndAddPage(60 + plan.cityAccommodationCosts.length * 20);
+                pdf.setFontSize(16);
+                pdf.setFont('helvetica', 'bold');
+                pdf.setTextColor(HEADER_COLOR);
+                pdf.text('Estimated Accommodation Costs', margin, yPos);
+                yPos += 25;
     
-                    const pdfX = margin + (linkRect.left - contentRect.left) * scale;
-                    const pdfLinkWidth = linkRect.width * scale;
-                    const pdfLinkHeight = linkRect.height * scale;
+                pdf.setFontSize(10);
+                plan.cityAccommodationCosts.forEach(cost => {
+                    checkAndAddPage(20);
+                    pdf.setTextColor(PRIMARY_TEXT_COLOR);
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.text(cost.city, margin, yPos);
                     
-                    pdf.link(pdfX, yOnPage, pdfLinkWidth, pdfLinkHeight, { url: href });
-                }
+                    const costText = `~$${cost.estimatedCost.toLocaleString()} for ${cost.nights} night${cost.nights > 1 ? 's' : ''}`;
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.setTextColor(SECONDARY_TEXT_COLOR);
+                    pdf.text(costText, pdfWidth - margin, yPos, { align: 'right' });
+                    yPos += 20;
+                });
+                yPos += 15;
+            }
+    
+            // --- Official Resources ---
+            if (plan.officialLinks && plan.officialLinks.length > 0) {
+                checkAndAddPage(60 + plan.officialLinks.length * 15);
+                pdf.setFontSize(16);
+                pdf.setFont('helvetica', 'bold');
+                pdf.setTextColor(HEADER_COLOR);
+                pdf.text('Official Resources', margin, yPos);
+                yPos += 25;
+    
+                pdf.setFontSize(10);
+                plan.officialLinks.forEach(link => {
+                    checkAndAddPage(15);
+                    pdf.setTextColor(LINK_COLOR);
+                    pdf.textWithLink(link.title, margin, yPos, { url: link.url });
+                    yPos += 15;
+                });
+                yPos += 15;
+            }
+            
+            // --- Final Cost Summary ---
+            checkAndAddPage(150);
+            pdf.setFontSize(16);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setTextColor(HEADER_COLOR);
+            pdf.text('Final Estimated Cost Summary', margin, yPos);
+            yPos += 25;
+    
+            const summaryItems = [
+                { label: 'Accommodation', value: costSummary.accommodation },
+                { label: 'Activities', value: costSummary.activities },
+                { label: 'Inter-city Travel', value: costSummary.travel },
+                { label: 'Food & Dining', value: costSummary.food },
+            ];
+            
+            pdf.setFontSize(10);
+            summaryItems.forEach(item => {
+                checkAndAddPage(20);
+                pdf.setTextColor(PRIMARY_TEXT_COLOR);
+                pdf.setFont('helvetica', 'normal');
+                pdf.text(item.label, margin, yPos);
+    
+                pdf.setFont('helvetica', 'bold');
+                pdf.text(`$${item.value.toLocaleString()}`, pdfWidth - margin, yPos, { align: 'right' });
+                yPos += 20;
             });
+    
+            yPos += 10;
+            pdf.setDrawColor(BORDER_COLOR);
+            pdf.line(margin, yPos, pdfWidth - margin, yPos);
+            yPos += 20;
+    
+            checkAndAddPage(25);
+            pdf.setFontSize(12);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setTextColor(PRIMARY_TEXT_COLOR);
+            pdf.text('Grand Total (per person)', margin, yPos);
+            pdf.setFontSize(14);
+            pdf.text(`~$${costSummary.grandTotal.toLocaleString()}`, pdfWidth - margin, yPos, { align: 'right' });
+            yPos += 25;
+    
+    
+            // --- 3. Itinerary Pages ---
+            pdf.addPage();
+            yPos = margin;
+    
+            pdf.setFontSize(24);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setTextColor(PRIMARY_TEXT_COLOR);
+            pdf.text("Detailed Itinerary", pdfWidth / 2, yPos, { align: 'center' });
+            yPos += 40;
+    
+            plan.itinerary.forEach((day, index) => {
+                // Start each new day on a new page, except for Day 1.
+                if (index > 0) {
+                    pdf.addPage();
+                    yPos = margin;
+                } else {
+                    // For Day 1, just ensure there's enough space after the main title.
+                    checkAndAddPage(60);
+                }
+    
+                pdf.setFontSize(18);
+                pdf.setFont('helvetica', 'bold');
+                pdf.setTextColor(HEADER_COLOR);
+                pdf.text(`Day ${day.day}: ${day.title}`, margin, yPos);
+                yPos += 25;
+                
+                pdf.setDrawColor(BORDER_COLOR);
+                pdf.line(margin, yPos, pdfWidth - margin, yPos);
+                yPos += 20;
+    
+                if (day.travelInfo) {
+                    checkAndAddPage(30);
+                    pdf.setFontSize(14);
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.setTextColor(PRIMARY_TEXT_COLOR);
+                    pdf.text('Travel Information', margin, yPos);
+                    yPos += 20;
+    
+                    pdf.setFontSize(10);
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.setTextColor(SECONDARY_TEXT_COLOR);
+                    pdf.text(`${day.travelInfo.fromCity} to ${day.travelInfo.toCity}`, margin + 10, yPos);
+                    yPos += 15;
+    
+                    day.travelInfo.options.forEach(opt => {
+                        checkAndAddPage(40); // Estimate needed space for one option
 
-            // --- Overlay selectable, invisible text ---
-            const addTextLayer = (element: HTMLElement, parentRect: DOMRect) => {
-                // Handle direct text children of the current element
-                Array.from(element.childNodes).forEach(child => {
-                    if (child.nodeType === Node.TEXT_NODE && child.nodeValue?.trim()) {
-                        const range = document.createRange();
-                        range.selectNode(child);
-                        const rect = range.getBoundingClientRect();
-                        const text = child.nodeValue.trim();
+                        let currentX = margin + 20;
+                        pdf.setFontSize(10);
 
-                        if (rect.width > 0 && rect.height > 0) {
-                            const computedStyle = window.getComputedStyle(element);
-                            const fontSize = parseFloat(computedStyle.fontSize);
+                        // --- Render BOLD part ---
+                        pdf.setFont('helvetica', 'bold');
+                        pdf.setTextColor(PRIMARY_TEXT_COLOR);
+                        const boldText = `${opt.mode}: ${opt.duration}, ~$${opt.cost} USD`;
+                        
+                        pdf.text(boldText, currentX, yPos);
+                        currentX += pdf.getTextWidth(boldText) + 4; // Add 4pt space
 
-                            // Skip if element is not visible
-                            if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden' || fontSize === 0) {
-                                return;
+                        // --- Render NORMAL part (description) ---
+                        if (opt.description) {
+                            pdf.setFont('helvetica', 'normal');
+                            pdf.setTextColor(SECONDARY_TEXT_COLOR);
+                            const normalText = `(${opt.description})`;
+
+                            const remainingWidth = pdfWidth - margin - currentX;
+
+                            // Handle cases where there's no space left on the line
+                            if (remainingWidth < 20) {
+                                yPos += 12;
+                                currentX = margin + 20;
+                                const splitDesc = pdf.splitTextToSize(normalText, contentWidth - 20);
+                                checkAndAddPage(splitDesc.length * 12);
+                                pdf.text(splitDesc, currentX, yPos);
+                                yPos += splitDesc.length * 12;
+                            } else {
+                                const splitText = pdf.splitTextToSize(normalText, remainingWidth);
+                                pdf.text(splitText[0], currentX, yPos); // Print the first line part
+
+                                if (splitText.length > 1) {
+                                    yPos += 12; // Move to next line
+                                    const restOfText = splitText.slice(1);
+                                    // The rest of the description gets the full width
+                                    const subsequentSplit = pdf.splitTextToSize(restOfText.join(' '), contentWidth - 20);
+                                    checkAndAddPage(subsequentSplit.length * 12);
+                                    pdf.text(subsequentSplit, margin + 20, yPos);
+                                    yPos += subsequentSplit.length * 12;
+                                }
                             }
+                        }
+                        
+                        yPos += 14; // Space before the next option
+                    });
+                    yPos += 10;
+                }
+                
+                day.activities.forEach(activity => {
+                    checkAndAddPage(80);
+                    
+                    pdf.setFontSize(12);
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.setTextColor(HEADER_COLOR);
+                    pdf.text(activity.name, margin, yPos);
+                    yPos += 18;
+    
+                    pdf.setFontSize(9);
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.setTextColor(SECONDARY_TEXT_COLOR);
+                    const details = `${activity.type} | ${activity.duration} | ${activity.averageCost > 0 ? `~$${activity.averageCost}` : 'Free'}`;
+                    pdf.text(details, margin, yPos);
+                    yPos += 15;
+    
+                    pdf.setTextColor(PRIMARY_TEXT_COLOR);
+                    const descLines = pdf.splitTextToSize(activity.description, contentWidth);
+                    checkAndAddPage(descLines.length * 12);
+                    pdf.text(descLines, margin, yPos);
+                    yPos += descLines.length * 12 + 5;
+    
+                    if (activity.links && activity.links.length > 0) {
+                        activity.links.forEach(link => {
+                            checkAndAddPage(12);
+                            pdf.setTextColor(LINK_COLOR);
+                            pdf.textWithLink(link.title, margin, yPos, { url: link.url });
+                            yPos += 12;
+                        });
+                    }
 
-                            const textTopInCanvas = (rect.top - parentRect.top) * scale;
-                            const pageNum = Math.floor(textTopInCanvas / pageContentHeight);
-                            // Y position in jsPDF is the baseline. A good approximation is top + height.
-                            const yOnPage = (textTopInCanvas % pageContentHeight) + margin + (rect.height * scale);
+                    if (activity.averageCost > 0 && activity.costBreakdown) {
+                        const breakdownItems = [
+                            { label: 'Activity / Ticket', value: activity.costBreakdown.activities },
+                            { label: 'Food / Dining', value: activity.costBreakdown.food },
+                            { label: 'Accommodation', value: activity.costBreakdown.accommodation }
+                        ].filter(item => item.value > 0);
 
-                            if (yOnPage > pdfHeight - margin) return;
+                        if (breakdownItems.length > 0) {
+                            yPos += 10;
+                            checkAndAddPage(15 + breakdownItems.length * 12);
+                            
+                            pdf.setFontSize(10);
+                            pdf.setFont('helvetica', 'bold');
+                            pdf.setTextColor(PRIMARY_TEXT_COLOR);
+                            pdf.text('Cost Breakdown (est. per person)', margin, yPos);
+                            yPos += 15;
 
-                            pdf.setPage(pageNum + 2);
-                            
-                            const pdfX = margin + (rect.left - parentRect.left) * scale;
-                            
-                            // Convert font size from px to pt for jsPDF (1px = 0.75pt)
-                            const pdfFontSize = fontSize * 0.75;
-                            pdf.setFontSize(pdfFontSize);
-                            
-                            // Pass the 'invisible' rendering mode directly to the text call
-                            pdf.text(text, pdfX, yOnPage, { renderingMode: 'invisible' } as any);
+                            pdf.setFontSize(9);
+                            pdf.setFont('helvetica', 'normal');
+
+                            breakdownItems.forEach(item => {
+                                checkAndAddPage(12);
+                                pdf.setTextColor(SECONDARY_TEXT_COLOR);
+                                pdf.text(item.label, margin + 10, yPos);
+
+                                pdf.setTextColor(PRIMARY_TEXT_COLOR);
+                                pdf.setFont('helvetica', 'bold');
+                                pdf.text(`$${item.value.toLocaleString()}`, pdfWidth - margin, yPos, { align: 'right' });
+                                yPos += 12;
+                                pdf.setFont('helvetica', 'normal');
+                            });
                         }
                     }
-                });
 
-                // Recurse into child elements
-                Array.from(element.children).forEach((child: Element) => {
-                    if (child.tagName !== 'SCRIPT' && child.tagName !== 'STYLE') {
-                        addTextLayer(child as HTMLElement, parentRect);
-                    }
+                    yPos += 15;
                 });
-            };
-            
-            addTextLayer(contentToExport, contentRect);
-            
+    
+                if (day.keepInMind) {
+                    checkAndAddPage(30);
+                    pdf.setFontSize(14);
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.setTextColor(WARNING_COLOR);
+                    pdf.text('Keep In Mind', margin, yPos);
+                    yPos += 20;
+    
+                    pdf.setFontSize(10);
+                    pdf.setTextColor(PRIMARY_TEXT_COLOR);
+                    const mindItems = day.keepInMind.map(item => item.tip);
+                    mindItems.forEach(item => {
+                        const text = item.replace(/^\s*\*\s*/, '').trim();
+                        const splitText = pdf.splitTextToSize(text, contentWidth - 20);
+                        checkAndAddPage(splitText.length * 12 + 5);
+                        pdf.text(splitText, margin + 20, yPos);
+                        yPos += splitText.length * 12;
+                    });
+                }
+            });
+    
+            // --- 4. Packing List Page ---
+            if (plan.packingList && plan.packingList.length > 0) {
+                pdf.addPage();
+                yPos = margin;
+                
+                pdf.setTextColor(PRIMARY_TEXT_COLOR);
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(24);
+                pdf.text('Packing List', pdfWidth / 2, yPos, { align: 'center' });
+                yPos += 40;
+                
+                plan.packingList.forEach(category => {
+                    checkAndAddPage(40);
+    
+                    pdf.setFontSize(16);
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.setTextColor(HEADER_COLOR);
+                    pdf.text(category.categoryName, margin, yPos);
+                    yPos += 25;
+    
+                    pdf.setFontSize(10);
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.setTextColor(PRIMARY_TEXT_COLOR);
+    
+                    category.items.forEach(item => {
+                        checkAndAddPage(15);
+                        pdf.text(item, margin + 20, yPos);
+                        yPos += 15;
+                    });
+                    yPos += 10;
+                });
+            }
+    
             pdf.save(`trip-to-${destination.name}.pdf`);
     
         } catch (error) {
             console.error("Error generating PDF:", error);
+            onError("Failed to generate PDF. Please try again.");
         } finally {
             setIsDownloading(false);
         }
@@ -658,130 +946,133 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onR
                         </div>
                     </div>
 
-                    <TripTimelineChart itinerary={plan.itinerary} />
+                    <div id="pdf-summary-content">
+                        <TripTimelineChart itinerary={plan.itinerary} />
 
-                    {plan.cityAccommodationCosts && plan.cityAccommodationCosts.length > 0 && (
-                        <div className="mb-10 p-6 bg-slate-800 rounded-xl border border-slate-700">
-                            <div className="flex items-center mb-4">
-                                <BuildingIcon />
-                                <h3 className="text-xl font-bold text-cyan-300">Estimated Accommodation Costs</h3>
+                        {plan.cityAccommodationCosts && plan.cityAccommodationCosts.length > 0 && (
+                            <div className="mb-10 p-6 bg-slate-800 rounded-xl border border-slate-700">
+                                <div className="flex items-center mb-4">
+                                    <BuildingIcon />
+                                    <h3 className="text-xl font-bold text-cyan-300">Estimated Accommodation Costs</h3>
+                                </div>
+                                <p className="text-sm text-slate-400 mb-4">Based on average 4-star hotel prices per city.</p>
+                                <ul className="space-y-3">
+                                    {plan.cityAccommodationCosts.map((cost, index) => (
+                                        <li key={index} className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-700/50 p-3 rounded-lg">
+                                            <div className="font-semibold text-slate-200">{cost.city}</div>
+                                            <div className="flex items-center gap-4 text-slate-300">
+                                                <span>{cost.nights} night{cost.nights > 1 ? 's' : ''}</span>
+                                                <span className="font-mono text-white bg-slate-900/40 px-3 py-1 rounded-md text-sm">~${cost.estimatedCost.toLocaleString()}</span>
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
                             </div>
-                            <p className="text-sm text-slate-400 mb-4">Based on average 4-star hotel prices per city.</p>
-                            <ul className="space-y-3">
-                                {plan.cityAccommodationCosts.map((cost, index) => (
-                                    <li key={index} className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-700/50 p-3 rounded-lg">
-                                        <div className="font-semibold text-slate-200">{cost.city}</div>
-                                        <div className="flex items-center gap-4 text-slate-300">
-                                            <span>{cost.nights} night{cost.nights > 1 ? 's' : ''}</span>
-                                            <span className="font-mono text-white bg-slate-900/40 px-3 py-1 rounded-md text-sm">~${cost.estimatedCost.toLocaleString()}</span>
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
+                        )}
 
-                    {plan.officialLinks && plan.officialLinks.length > 0 && (
-                        <div className="mb-10 p-6 bg-slate-800 rounded-xl border border-slate-700">
-                            <div className="flex items-center mb-4">
-                                <GlobeIcon />
-                                <h3 className="text-xl font-bold text-cyan-300">Official Resources</h3>
-                            </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                {plan.officialLinks.map((link) => (
-                                    <a
-                                        key={link.url}
-                                        href={link.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center gap-3 bg-slate-700/50 p-3 rounded-lg border border-slate-600 hover:border-cyan-500 hover:bg-slate-700 transition-all group"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-400 group-hover:text-cyan-400 transition-colors flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                        </svg>
-                                        <span className="text-slate-300 group-hover:text-cyan-300 transition-colors text-sm truncate">{link.title}</span>
-                                    </a>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="space-y-8">
-                        {plan.itinerary.map((dailyPlan, index) => (
-                            <DailyPlanCard
-                                key={dailyPlan.day}
-                                dailyPlan={dailyPlan}
-                                dayIndex={index}
-                                draggedActivityId={draggedActivityId}
-                                setDraggedActivityId={setDraggedActivityId}
-                                dragOverActivityId={dragOverActivityId}
-                                setDragOverActivityId={setDragOverActivityId}
-                                onDeleteActivity={onDeleteActivity}
-                                onReorderActivities={onReorderActivities}
-                                highlightedActivityId={highlightedActivityId}
-                                onActivityHighlight={handleHighlightActivity}
-                                onShowMap={() => handleShowMap(index)}
-                            />
-                        ))}
-                    </div>
-
-                    <div className="mt-10 p-6 bg-slate-800 rounded-xl border border-slate-700">
-                        <div className="flex items-center mb-4">
-                            <ChartPieIcon />
-                            <h3 className="text-xl font-bold text-cyan-300">Final Estimated Cost Summary</h3>
-                        </div>
-                        <ul className="space-y-3 mb-4">
-                            <li className="flex justify-between items-center bg-slate-700/50 p-3 rounded-lg">
-                                <span className="font-semibold text-slate-200">🏠 Accommodation</span>
-                                <span className="font-mono text-white bg-slate-900/40 px-3 py-1 rounded-md text-sm">
-                                    ${costSummary.accommodation.toLocaleString()}
-                                </span>
-                            </li>
-                            <li className="flex justify-between items-center bg-slate-700/50 p-3 rounded-lg">
-                                <span className="font-semibold text-slate-200">🎟️ Activities</span>
-                                <span className="font-mono text-white bg-slate-900/40 px-3 py-1 rounded-md text-sm">
-                                    ${costSummary.activities.toLocaleString()}
-                                </span>
-                            </li>
-                            <li className="flex justify-between items-center bg-slate-700/50 p-3 rounded-lg">
-                                <span className="font-semibold text-slate-200">✈️ Inter-city Travel</span>
-                                <span className="font-mono text-white bg-slate-900/40 px-3 py-1 rounded-md text-sm">
-                                    ${costSummary.travel.toLocaleString()}
-                                </span>
-                            </li>
-                            <li className="flex justify-between items-center bg-slate-700/50 p-3 rounded-lg">
-                                <span className="font-semibold text-slate-200">🍜 Food & Dining</span>
-                                <span className="font-mono text-white bg-slate-900/40 px-3 py-1 rounded-md text-sm">
-                                    ${costSummary.food.toLocaleString()}
-                                </span>
-                            </li>
-                        </ul>
-                        <div className="mt-6 pt-4 border-t border-slate-700 flex justify-between items-center">
-                            <span className="text-lg font-bold text-cyan-300">Grand Total (per person)</span>
-                            <span className="text-xl font-bold font-mono text-white bg-cyan-600/50 px-4 py-2 rounded-lg">
-                                ~${costSummary.grandTotal.toLocaleString()}
-                            </span>
-                        </div>
-                        <p className="text-xs text-slate-500 mt-4 text-center">
-                            Disclaimer: These are estimates based on the generated plan and do not include international airfare.
-                        </p>
-                    </div>
-
-
-                    <div className="mt-10 p-6 bg-slate-800 rounded-xl border border-cyan-500/30 relative">
-                        {isLoading && (
-                            <div className="absolute inset-0 bg-slate-800/80 backdrop-blur-sm flex items-center justify-center rounded-xl z-10">
-                                <div className="flex items-center gap-2 text-cyan-300">
-                                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                    <span>Rebuilding plan...</span>
+                        {plan.officialLinks && plan.officialLinks.length > 0 && (
+                            <div className="mb-10 p-6 bg-slate-800 rounded-xl border border-slate-700">
+                                <div className="flex items-center mb-4">
+                                    <GlobeIcon />
+                                    <h3 className="text-xl font-bold text-cyan-300">Official Resources</h3>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    {plan.officialLinks.map((link) => (
+                                        <a
+                                            key={link.url}
+                                            href={link.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center gap-3 bg-slate-700/50 p-3 rounded-lg border border-slate-600 hover:border-cyan-500 hover:bg-slate-700 transition-all group"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-400 group-hover:text-cyan-400 transition-colors flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                            </svg>
+                                            <span className="text-slate-300 group-hover:text-cyan-300 transition-colors text-sm truncate">{link.title}</span>
+                                        </a>
+                                    ))}
                                 </div>
                             </div>
                         )}
-                        <div className="flex items-center mb-3">
-                            <LightbulbIcon />
-                            <h3 className="text-xl font-bold text-cyan-300">Pro-Tip: Itinerary Optimization</h3>
+                        
+                        <div className="mt-10 p-6 bg-slate-800 rounded-xl border border-slate-700">
+                            <div className="flex items-center mb-4">
+                                <ChartPieIcon />
+                                <h3 className="text-xl font-bold text-cyan-300">Final Estimated Cost Summary</h3>
+                            </div>
+                            <ul className="space-y-3 mb-4">
+                                <li className="flex justify-between items-center bg-slate-700/50 p-3 rounded-lg">
+                                    <span className="font-semibold text-slate-200">🏠 Accommodation</span>
+                                    <span className="font-mono text-white bg-slate-900/40 px-3 py-1 rounded-md text-sm">
+                                        ${costSummary.accommodation.toLocaleString()}
+                                    </span>
+                                </li>
+                                <li className="flex justify-between items-center bg-slate-700/50 p-3 rounded-lg">
+                                    <span className="font-semibold text-slate-200">🎟️ Activities</span>
+                                    <span className="font-mono text-white bg-slate-900/40 px-3 py-1 rounded-md text-sm">
+                                        ${costSummary.activities.toLocaleString()}
+                                    </span>
+                                </li>
+                                <li className="flex justify-between items-center bg-slate-700/50 p-3 rounded-lg">
+                                    <span className="font-semibold text-slate-200">✈️ Inter-city Travel</span>
+                                    <span className="font-mono text-white bg-slate-900/40 px-3 py-1 rounded-md text-sm">
+                                        ${costSummary.travel.toLocaleString()}
+                                    </span>
+                                </li>
+                                <li className="flex justify-between items-center bg-slate-700/50 p-3 rounded-lg">
+                                    <span className="font-semibold text-slate-200">🍜 Food & Dining</span>
+                                    <span className="font-mono text-white bg-slate-900/40 px-3 py-1 rounded-md text-sm">
+                                        ${costSummary.food.toLocaleString()}
+                                    </span>
+                                </li>
+                            </ul>
+                            <div className="mt-6 pt-4 border-t border-slate-700 flex justify-between items-center">
+                                <span className="text-lg font-bold text-cyan-300">Grand Total (per person)</span>
+                                <span className="text-xl font-bold font-mono text-white bg-cyan-600/50 px-4 py-2 rounded-lg">
+                                    ~${costSummary.grandTotal.toLocaleString()}
+                                </span>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-4 text-center">
+                                Disclaimer: These are estimates based on the generated plan and do not include international airfare.
+                            </p>
                         </div>
-                        <p className="text-slate-300">{plan.optimizationSuggestions}</p>
+
+                        <div className="mt-10 p-6 bg-slate-800 rounded-xl border border-cyan-500/30 relative">
+                            {isLoading && (
+                                <div className="absolute inset-0 bg-slate-800/80 backdrop-blur-sm flex items-center justify-center rounded-xl z-10">
+                                    <div className="flex items-center gap-2 text-cyan-300">
+                                        <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                        <span>Rebuilding plan...</span>
+                                    </div>
+                                </div>
+                            )}
+                            <div className="flex items-center mb-3">
+                                <LightbulbIcon />
+                                <h3 className="text-xl font-bold text-cyan-300">Pro-Tip: Itinerary Optimization</h3>
+                            </div>
+                            <p className="text-slate-300">{plan.optimizationSuggestions}</p>
+                        </div>
+                    </div>
+
+
+                    <div className="space-y-8 mt-10">
+                        {plan.itinerary.map((dailyPlan, index) => (
+                            <div key={dailyPlan.day} data-day-card>
+                                <DailyPlanCard
+                                    dailyPlan={dailyPlan}
+                                    dayIndex={index}
+                                    draggedActivityId={draggedActivityId}
+                                    setDraggedActivityId={setDraggedActivityId}
+                                    dragOverActivityId={dragOverActivityId}
+                                    setDragOverActivityId={setDragOverActivityId}
+                                    onDeleteActivity={onDeleteActivity}
+                                    onReorderActivities={onReorderActivities}
+                                    highlightedActivityId={highlightedActivityId}
+                                    onActivityHighlight={handleHighlightActivity}
+                                    onShowMap={() => handleShowMap(index)}
+                                />
+                            </div>
+                        ))}
                     </div>
                 </div>
                 

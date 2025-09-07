@@ -346,7 +346,25 @@ const getBaseTravelPlanSchema = () => ({
               required: ["name", "description", "city", "type", "averageCost", "costBreakdown", "lat", "lng", "duration", "links"],
             }
           },
-          keepInMind: { type: Type.STRING, description: "A bulleted list of helpful 'dos and don'ts' and warnings about potential local scams relevant to the day's activities. Use markdown for bullet points (e.g., '* Do this...')." },
+          keepInMind: {
+            type: Type.ARRAY,
+            description: "An array of helpful tips, dos, don'ts, and scam warnings for the day. Each tip must have a type and the text content.",
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                type: {
+                  type: Type.STRING,
+                  enum: ['do', 'dont', 'warning', 'info'],
+                  description: "The type of tip: 'do' for positive advice, 'dont' for what to avoid, 'warning' for scams or dangers, 'info' for general information."
+                },
+                tip: {
+                  type: Type.STRING,
+                  description: "The text content of the tip, without any prefix like 'Do:' or 'Warning:'."
+                }
+              },
+              required: ["type", "tip"]
+            }
+          },
         },
         propertyOrdering: ["day", "title", "travelInfo", "activities", "keepInMind"],
         required: ["day", "title", "activities", "keepInMind"],
@@ -426,7 +444,7 @@ Your task is to create a highly optimized and logical travel itinerary.
         9.  The precise longitude for the activity.
         10. Up to 2 relevant informational links (e.g., official website, Wikipedia page).
     *   **Logical Flow:** Ensure daily activities are geographically grouped.
-    *   **Keep in Mind Section:** For each day, provide a "Keep in Mind" section. This must be a short, bulleted list of crucial advice including at least one "Do", one "Don't", and a warning about a specific, relevant scam if common. Use markdown for bullet points (e.g., \`* Do try the local street food...\`).
+    *   **Keep in Mind Section:** For each day, provide a "Keep in Mind" section as an array of tip objects. Each object must have a 'type' ('do', 'dont', 'warning', 'info') and the 'tip' text. The 'tip' text itself should be the advice, without prefixes like "Do:" or "Warning:". Include crucial advice, with at least one 'do', one 'dont', and one 'warning' about a specific, relevant scam if common.
     ${userRequests}
 
 2.  **Calculate Accommodation Costs:** For each distinct city visited in the itinerary, calculate the total estimated accommodation cost. Base this on the average price of a good 4-star hotel in that city. Provide the city name, the total number of nights spent there, and the total estimated cost in USD.
@@ -494,7 +512,7 @@ Your task is to create a comprehensive, optimized, and logical travel itinerary 
         8.  The precise latitude and longitude.
         9.  Up to 2 relevant informational links (e.g., official website, Wikipedia page).
     *   **Logical Flow:** Ensure the entire itinerary flows logically from one region to the next, minimizing backtracking. Daily activities must be geographically grouped.
-    *   **Keep in Mind Section:** For each day, provide a "Keep in Mind" section with relevant dos, don'ts, and scam warnings. Use markdown for bullet points.
+    *   **Keep in Mind Section:** For each day, provide a "Keep in Mind" section as an array of tip objects, each with a 'type' ('do', 'dont', 'warning', 'info') and 'tip' text (without prefixes). Include relevant dos, don'ts, and scam warnings.
     ${userRequests}
 3.  **Calculate Accommodation Costs:** For each distinct city visited in the itinerary, calculate the total estimated accommodation cost. Base this on the average price of a good 4-star hotel in that city. Provide the city name, the total number of nights spent there, and the total estimated cost in USD.
 4.  **Provide Official Links:** List up to 4 highly relevant official tourism links for ${country}.
@@ -552,7 +570,7 @@ A user has modified their itinerary and wants you to re-optimize it.
     *   **Logic:** Group the activities logically and geographically for each day into a ${duration}-day plan.
     *   **Structure:** For each day, provide a day number, a creative title, and the list of activities. For each activity, retain its original details. 
     *   **Cost, Location & Links:** If an activity is missing latitude, longitude, or city, you must find them. If an activity is missing its duration, you must estimate one. Ensure the cost breakdown rules are followed (e.g., 'accommodation' is usually 0, 'averageCost' is the sum of the breakdown). You must also generate up to 2 relevant informational links for each activity.
-    *   **Keep in Mind Section:** Based on the newly arranged activities for each day, generate a *new* "Keep in Mind" section with relevant dos, don'ts, and scam warnings. Use markdown for bullet points.
+    *   **Keep in Mind Section:** Based on the newly arranged activities for each day, generate a *new* "Keep in Mind" section as an array of tip objects. Each object must have a 'type' ('do', 'dont', 'warning', 'info') and 'tip' text (without prefixes). Include relevant dos, don'ts, and scam warnings.
     ${userRequests}
 
 2.  **Calculate Accommodation Costs:** Based on the newly arranged itinerary, for each distinct city visited, calculate the total estimated accommodation cost. Base this on the average price of a good 4-star hotel in that city. Provide the city name, the total number of nights spent there, and the total estimated cost in USD.
