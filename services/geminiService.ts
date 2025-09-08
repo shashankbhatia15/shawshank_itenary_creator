@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import type { DestinationSuggestion, TravelPlan, ItineraryStyle, CostBreakdown, DailyPlan, ItineraryLocation, PackingListCategory } from '../types';
 
@@ -113,6 +112,162 @@ function parseApiError(error: unknown, context: string): string {
 }
 
 
+// --- Response Schemas ---
+
+const costBreakdownSchema = {
+  type: Type.OBJECT,
+  properties: {
+    accommodation: { type: Type.NUMBER, description: 'Estimated cost for accommodation in USD.' },
+    food: { type: Type.NUMBER, description: 'Estimated cost for food in USD.' },
+    activities: { type: Type.NUMBER, description: 'Estimated cost for activities in USD.' },
+  },
+  required: ['accommodation', 'food', 'activities'],
+};
+
+const directCountryInfoSchema = {
+  type: Type.OBJECT,
+  properties: {
+    description: { type: Type.STRING, description: "A short, compelling description of the country as a travel destination (2-3 sentences)." },
+    visaInfo: { type: Type.STRING, description: "A summary of visa requirements for Indian citizens, mentioning e-visa or visa on arrival availability." },
+    averageCost: { type: Type.NUMBER, description: "An estimated total average cost in USD for a solo traveler for a 7-day trip." },
+    costBreakdown: costBreakdownSchema,
+  },
+  required: ['description', 'visaInfo', 'averageCost', 'costBreakdown'],
+};
+
+const destinationSuggestionSchema = {
+  type: Type.OBJECT,
+  properties: {
+    name: { type: Type.STRING, description: "The name of the country suggested." },
+    country: { type: Type.STRING, description: "The formal name of the country." },
+    description: { type: Type.STRING, description: "A short, compelling description of the country as a travel destination (2-3 sentences)." },
+    visaInfo: { type: Type.STRING, description: "A summary of visa requirements for Indian citizens, mentioning e-visa or visa on arrival availability." },
+    averageCost: { type: Type.NUMBER, description: "An estimated total average cost in USD for a solo traveler for a 7-day trip." },
+    costBreakdown: costBreakdownSchema,
+  },
+  required: ['name', 'country', 'description', 'visaInfo', 'averageCost', 'costBreakdown'],
+};
+
+const travelSuggestionsSchema = {
+  type: Type.ARRAY,
+  items: destinationSuggestionSchema,
+};
+
+const itineraryLinkSchema = {
+  type: Type.OBJECT,
+  properties: {
+    title: { type: Type.STRING },
+    url: { type: Type.STRING },
+  },
+  required: ['title', 'url'],
+};
+
+const itineraryLocationSchema = {
+  type: Type.OBJECT,
+  properties: {
+    name: { type: Type.STRING },
+    description: { type: Type.STRING },
+    city: { type: Type.STRING },
+    type: { type: Type.STRING, enum: ['Touristy', 'Off-beat'] },
+    links: { type: Type.ARRAY, items: itineraryLinkSchema },
+    averageCost: { type: Type.NUMBER },
+    costBreakdown: costBreakdownSchema,
+    lat: { type: Type.NUMBER },
+    lng: { type: Type.NUMBER },
+    duration: { type: Type.STRING, description: "e.g., '2-3 hours'" },
+    visitingTip: { type: Type.STRING },
+  },
+  required: ['name', 'description', 'city', 'type', 'links', 'averageCost', 'costBreakdown', 'lat', 'lng'],
+};
+
+const transportOptionSchema = {
+  type: Type.OBJECT,
+  properties: {
+    mode: { type: Type.STRING, description: "e.g., Train, Bus, Flight" },
+    duration: { type: Type.STRING, description: "e.g., '4 hours'" },
+    cost: { type: Type.NUMBER, description: "Estimated cost in USD" },
+    description: { type: Type.STRING, description: "Brief description of the option" },
+  },
+  required: ['mode', 'duration', 'cost'],
+};
+
+const travelInfoSchema = {
+  type: Type.OBJECT,
+  properties: {
+    fromCity: { type: Type.STRING },
+    toCity: { type: Type.STRING },
+    options: { type: Type.ARRAY, items: transportOptionSchema },
+  },
+  required: ['fromCity', 'toCity', 'options'],
+};
+
+const keepInMindItemSchema = {
+  type: Type.OBJECT,
+  properties: {
+    type: { type: Type.STRING, enum: ['do', 'dont', 'warning', 'info'] },
+    tip: { type: Type.STRING },
+  },
+  required: ['type', 'tip'],
+};
+
+const dailyPlanSchema = {
+  type: Type.OBJECT,
+  properties: {
+    day: { type: Type.INTEGER },
+    title: { type: Type.STRING, description: "A catchy title for the day's plan" },
+    activities: { type: Type.ARRAY, items: itineraryLocationSchema },
+    keepInMind: { type: Type.ARRAY, items: keepInMindItemSchema },
+    travelInfo: travelInfoSchema,
+  },
+  required: ['day', 'title', 'activities', 'keepInMind'],
+};
+
+const officialLinkSchema = {
+  type: Type.OBJECT,
+  properties: {
+    title: { type: Type.STRING },
+    url: { type: Type.STRING },
+  },
+  required: ['title', 'url'],
+};
+
+const cityAccommodationCostSchema = {
+  type: Type.OBJECT,
+  properties: {
+    city: { type: Type.STRING },
+    estimatedCost: { type: Type.NUMBER, description: "Total estimated cost for all nights in this city" },
+    nights: { type: Type.INTEGER, description: "Number of nights to stay in this city" },
+  },
+  required: ['city', 'estimatedCost', 'nights'],
+};
+
+const travelPlanSchema = {
+  type: Type.OBJECT,
+  properties: {
+    itinerary: { type: Type.ARRAY, items: dailyPlanSchema },
+    optimizationSuggestions: { type: Type.STRING, description: "Suggestions to optimize the travel plan, like reordering cities or activities." },
+    officialLinks: { type: Type.ARRAY, items: officialLinkSchema, description: "Links to official tourism websites, visa portals, etc." },
+    cityAccommodationCosts: { type: Type.ARRAY, items: cityAccommodationCostSchema, description: "Estimated accommodation costs per city for the trip." },
+  },
+  required: ['itinerary', 'optimizationSuggestions', 'officialLinks', 'cityAccommodationCosts'],
+};
+
+const packingListCategorySchema = {
+  type: Type.OBJECT,
+  properties: {
+    categoryName: { type: Type.STRING },
+    items: { type: Type.ARRAY, items: { type: Type.STRING } },
+  },
+  required: ['categoryName', 'items'],
+};
+
+const packingListSchema = {
+    type: Type.ARRAY,
+    items: packingListCategorySchema,
+};
+
+// --- API Functions ---
+
 export async function getDirectCountryInfo(countryName: string): Promise<{ description: string; visaInfo: string; averageCost: number; costBreakdown: CostBreakdown; }> {
   const cacheKey = `country-info:${countryName.trim().toLowerCase()}`;
   const cachedData = getFromCache<{ description: string; visaInfo: string; averageCost: number; costBreakdown: CostBreakdown; }>(cacheKey);
@@ -126,39 +281,22 @@ export async function getDirectCountryInfo(countryName: string): Promise<{ descr
       contents: `You are an expert travel agent. For the country "${countryName}", provide:
 1. A short, compelling description of why it's a good travel destination (2-3 sentences).
 2. A summary of visa requirements for Indian citizens. Specifically mention if an e-visa or visa on arrival is available.
-3. An estimated average cost in USD for a solo traveler for a 7-day trip. This should include mid-range (3-4 star) hotels, daily meals, and one tourist activity per day. Provide only a single number for the cost. Also provide a breakdown of this 7-day cost into 'accommodation', 'food', and 'activities'.`,
+3. An estimated average cost in USD for a solo traveler for a 7-day trip.
+4. A simple cost breakdown (Accommodation, Food, Activities) for that 7-day trip.
+Return the data in the specified JSON format.`,
       config: {
         responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            description: { type: Type.STRING },
-            visaInfo: { type: Type.STRING, description: "Visa requirements for Indian citizens, including e-visa or visa on arrival details." },
-            averageCost: { type: Type.NUMBER, description: "Estimated 7-day cost in USD for a solo traveler."},
-            costBreakdown: {
-              type: Type.OBJECT,
-              description: "Breakdown of the 7-day cost.",
-              properties: {
-                accommodation: { type: Type.NUMBER, description: "Estimated 7-day accommodation cost in USD." },
-                food: { type: Type.NUMBER, description: "Estimated 7-day food cost in USD." },
-                activities: { type: Type.NUMBER, description: "Estimated 7-day activities cost in USD." }
-              },
-              required: ["accommodation", "food", "activities"]
-            }
-          },
-          required: ["description", "visaInfo", "averageCost", "costBreakdown"],
-        },
+        responseSchema: directCountryInfoSchema,
       },
     });
-    const jsonText = response.text.trim();
-    const result = JSON.parse(jsonText);
-    setInCache(cacheKey, result);
-    return result;
+
+    const data = JSON.parse(response.text.trim());
+    setInCache(cacheKey, data);
+    return data;
   } catch (error) {
-    throw new Error(parseApiError(error, `fetching info for "${countryName}"`));
+    throw new Error(parseApiError(error, `getting information for ${countryName}`));
   }
 }
-
 
 export async function getTravelSuggestions(budget: string, timeOfYear: string, continent: string): Promise<DestinationSuggestion[]> {
   const cacheKey = `suggestions:${budget}:${timeOfYear}:${continent}`;
@@ -168,481 +306,218 @@ export async function getTravelSuggestions(budget: string, timeOfYear: string, c
   }
 
   try {
-    const continentQuery = continent === 'Any' ? '' : `within ${continent}`;
-    
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: `You are an expert travel agent. Based on a ${budget} budget and traveling during ${timeOfYear}, suggest 7-8 countries to visit ${continentQuery}. For each country, provide:
-1. Its name.
+      model: 'gemini-2.5-flash',
+      contents: `You are an expert travel agent. Suggest 3 diverse countries for a traveler from India with the following preferences:
+- Budget: ${budget}
+- Time of Year: ${timeOfYear}
+- Continent: ${continent}
+
+For each country, provide:
+1. The country name.
 2. A short, compelling description (2-3 sentences).
 3. A summary of visa requirements for Indian citizens (mention e-visa/visa on arrival).
-4. An estimated average cost in USD for a solo traveler for a 7-day trip, including mid-range (3-4 star) hotels, daily meals, and one tourist activity per day. Provide only a single number for the cost. Also provide a breakdown of this 7-day cost into 'accommodation', 'food', and 'activities'.`,
+4. An estimated average cost in USD for a solo traveler for a 7-day trip.
+5. A simple cost breakdown (Accommodation, Food, Activities) for that 7-day trip.
+Return the data as an array in the specified JSON format. Ensure all fields are filled.`,
       config: {
         responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              name: { type: Type.STRING, description: "The name of the country." },
-              country: { type: Type.STRING, description: "The name of the country." },
-              description: { type: Type.STRING },
-              visaInfo: { type: Type.STRING, description: "Visa requirements for Indian citizens, including e-visa or visa on arrival details." },
-              averageCost: { type: Type.NUMBER, description: "Estimated 7-day cost in USD for a solo traveler."},
-              costBreakdown: {
-                type: Type.OBJECT,
-                description: "Breakdown of the 7-day cost.",
-                properties: {
-                  accommodation: { type: Type.NUMBER, description: "Estimated 7-day accommodation cost in USD." },
-                  food: { type: Type.NUMBER, description: "Estimated 7-day food cost in USD." },
-                  activities: { type: Type.NUMBER, description: "Estimated 7-day activities cost in USD." }
-                },
-                required: ["accommodation", "food", "activities"]
-              }
-            },
-            required: ["name", "country", "description", "visaInfo", "averageCost", "costBreakdown"],
-          },
-        },
+        responseSchema: travelSuggestionsSchema,
       },
     });
-
-    const jsonText = response.text.trim();
-    const suggestions: DestinationSuggestion[] = JSON.parse(jsonText);
-    setInCache(cacheKey, suggestions);
-    return suggestions;
-
+    const data = JSON.parse(response.text.trim());
+    setInCache(cacheKey, data);
+    return data;
   } catch (error) {
-    throw new Error(parseApiError(error, "generating travel suggestions"));
+    throw new Error(parseApiError(error, 'getting travel suggestions'));
   }
 }
 
 export async function getOffBeatSuggestions(): Promise<DestinationSuggestion[]> {
-  const cacheKey = `offbeat-suggestions`;
+  const cacheKey = `suggestions:off-beat`;
   const cachedData = getFromCache<DestinationSuggestion[]>(cacheKey);
   if (cachedData) {
     return cachedData;
   }
-  
+
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: `You are an expert travel agent specializing in unique, off-the-beaten-path destinations. Suggest 5 countries that are considered safe for tourists but are not typically on mainstream "top 10" travel lists. For each country, provide:
-1. Its name.
-2. A short, compelling description (2-3 sentences) of why it's a great off-beat destination.
+      model: 'gemini-2.5-flash',
+      contents: `You are a seasoned traveler who loves finding hidden gems. Suggest 3 unique, off-the-beaten-path countries that are great for adventurous travelers from India. Avoid overly common tourist destinations.
+
+For each country, provide:
+1. The country name.
+2. A short, compelling description highlighting its unique appeal (2-3 sentences).
 3. A summary of visa requirements for Indian citizens (mention e-visa/visa on arrival).
-4. An estimated average cost in USD for a solo traveler for a 7-day trip, including mid-range (3-4 star) hotels, daily meals, and one tourist activity per day. Provide only a single number for the cost. Also provide a breakdown of this 7-day cost into 'accommodation', 'food', and 'activities'.`,
+4. An estimated average cost in USD for a solo traveler for a 7-day trip.
+5. A simple cost breakdown (Accommodation, Food, Activities) for that 7-day trip.
+Return the data as an array in the specified JSON format. Ensure all fields are filled.`,
       config: {
         responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              name: { type: Type.STRING, description: "The name of the country." },
-              country: { type: Type.STRING, description: "The name of the country." },
-              description: { type: Type.STRING },
-              visaInfo: { type: Type.STRING, description: "Visa requirements for Indian citizens, including e-visa or visa on arrival details." },
-              averageCost: { type: Type.NUMBER, description: "Estimated 7-day cost in USD for a solo traveler."},
-              costBreakdown: {
-                type: Type.OBJECT,
-                description: "Breakdown of the 7-day cost.",
-                properties: {
-                  accommodation: { type: Type.NUMBER, description: "Estimated 7-day accommodation cost in USD." },
-                  food: { type: Type.NUMBER, description: "Estimated 7-day food cost in USD." },
-                  activities: { type: Type.NUMBER, description: "Estimated 7-day activities cost in USD." }
-                },
-                required: ["accommodation", "food", "activities"]
-              }
-            },
-            required: ["name", "country", "description", "visaInfo", "averageCost", "costBreakdown"],
-          },
-        },
+        responseSchema: travelSuggestionsSchema,
       },
     });
-
-    const jsonText = response.text.trim();
-    const suggestions: DestinationSuggestion[] = JSON.parse(jsonText);
-    setInCache(cacheKey, suggestions);
-    return suggestions;
-
+    const data = JSON.parse(response.text.trim());
+    setInCache(cacheKey, data);
+    return data;
   } catch (error) {
-    throw new Error(parseApiError(error, "generating off-beat travel suggestions"));
+    throw new Error(parseApiError(error, 'getting off-beat travel suggestions'));
   }
 }
 
-const getBaseTravelPlanSchema = () => ({
-  type: Type.OBJECT,
-  properties: {
-    itinerary: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          day: { type: Type.INTEGER },
-          title: { type: Type.STRING },
-          travelInfo: {
-            type: Type.OBJECT,
-            description: "Information about travel between cities. Only include if traveling from one city to another, which should happen at the start of the day. Provide 2-3 diverse options where applicable (e.g., flight, train, bus).",
-            properties: {
-              fromCity: { type: Type.STRING },
-              toCity: { type: Type.STRING },
-              options: {
-                type: Type.ARRAY,
-                description: "An array of transportation options to get from the fromCity to the toCity.",
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    mode: { type: Type.STRING, description: "e.g., 'Train', 'Flight', 'Bus', 'Rental Car'" },
-                    duration: { type: Type.STRING, description: "e.g., '3 hours', '1h 30m'" },
-                    cost: { type: Type.NUMBER, description: "Estimated cost per person in USD." },
-                    description: { type: Type.STRING, description: "A brief, helpful note about this option, e.g., 'Fastest but most expensive', 'Scenic route'." }
-                  },
-                  propertyOrdering: ["mode", "duration", "cost", "description"],
-                  required: ["mode", "duration", "cost"]
-                }
-              }
-            },
-            propertyOrdering: ["fromCity", "toCity", "options"],
-            required: ["fromCity", "toCity", "options"]
-          },
-          activities: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                name: { type: Type.STRING },
-                description: { type: Type.STRING },
-                city: { type: Type.STRING, description: "The city where the activity is located." },
-                type: { type: Type.STRING, enum: ['Touristy', 'Off-beat'] },
-                duration: { type: Type.STRING, description: "Estimated time to complete the activity, e.g., '2-3 hours', 'Full day'." },
-                averageCost: { type: Type.NUMBER, description: "Estimated cost per person in USD. Must be the sum of the breakdown." },
-                costBreakdown: {
-                  type: Type.OBJECT,
-                  description: "Cost breakdown per person. Accommodation is usually 0.",
-                  properties: {
-                    accommodation: { type: Type.NUMBER, description: "Cost for accommodation, if part of the activity (e.g., overnight trek). Usually 0." },
-                    food: { type: Type.NUMBER, description: "Cost for food, if it is a main part of the activity (e.g., dinner cruise). Usually 0." },
-                    activities: { type: Type.NUMBER, description: "Cost for tickets, entrance fees, or the primary activity itself." }
-                  },
-                  propertyOrdering: ["accommodation", "food", "activities"],
-                  required: ["accommodation", "food", "activities"]
-                },
-                lat: { type: Type.NUMBER, description: "The precise latitude of the activity location." },
-                lng: { type: Type.NUMBER, description: "The precise longitude of the activity location." },
-                links: {
-                  type: Type.ARRAY,
-                  description: "Up to 2 relevant informational or official links (e.g., official website, Wikipedia page).",
-                  items: {
-                    type: Type.OBJECT,
-                    properties: {
-                      title: { type: Type.STRING, description: "The title of the link." },
-                      url: { type: Type.STRING, description: "The full URL." }
-                    },
-                    required: ["title", "url"]
-                  }
-                }
-              },
-              propertyOrdering: ["name", "description", "city", "type", "duration", "averageCost", "costBreakdown", "lat", "lng", "links"],
-              required: ["name", "description", "city", "type", "averageCost", "costBreakdown", "lat", "lng", "duration", "links"],
-            }
-          },
-          keepInMind: {
-            type: Type.ARRAY,
-            description: "An array of helpful tips, dos, don'ts, and scam warnings for the day. Each tip must have a type and the text content.",
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                type: {
-                  type: Type.STRING,
-                  enum: ['do', 'dont', 'warning', 'info'],
-                  description: "The type of tip: 'do' for positive advice, 'dont' for what to avoid, 'warning' for scams or dangers, 'info' for general information."
-                },
-                tip: {
-                  type: Type.STRING,
-                  description: "The text content of the tip, without any prefix like 'Do:' or 'Warning:'."
-                }
-              },
-              required: ["type", "tip"]
-            }
-          },
-        },
-        propertyOrdering: ["day", "title", "travelInfo", "activities", "keepInMind"],
-        required: ["day", "title", "activities", "keepInMind"],
-      },
-    },
-    cityAccommodationCosts: {
-      type: Type.ARRAY,
-      description: "An array detailing the estimated accommodation cost for each city visited, based on 4-star hotels.",
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          city: { type: Type.STRING, description: "The name of the city." },
-          estimatedCost: { type: Type.NUMBER, description: "The total estimated accommodation cost in USD for the duration of the stay in this city." },
-          nights: { type: Type.INTEGER, description: "The number of nights spent in this city." }
-        },
-        propertyOrdering: ["city", "nights", "estimatedCost"],
-        required: ["city", "nights", "estimatedCost"]
-      }
-    },
-    optimizationSuggestions: { type: Type.STRING, description: "A paragraph with tips to optimize the travel schedule." },
-    officialLinks: {
-      type: Type.ARRAY,
-      description: "An array of up to 4 official tourism links for the country.",
-      items: {
-          type: Type.OBJECT,
-          properties: {
-              title: { type: Type.STRING, description: "A concise title for the link." },
-              url: { type: Type.STRING, description: "The full, valid URL for the resource." }
-          },
-          propertyOrdering: ["title", "url"],
-          required: ["title", "url"]
-      }
-    }
-  },
-  propertyOrdering: ["itinerary", "cityAccommodationCosts", "optimizationSuggestions", "officialLinks"],
-  required: ["itinerary", "optimizationSuggestions", "officialLinks"],
-});
-
-
-export async function getTravelPlan(country: string, duration: number, style: ItineraryStyle, additionalNotes: string): Promise<TravelPlan> {
-  const cacheKey = `plan:${country}:${duration}:${style}:${additionalNotes.trim()}`;
+export async function getTravelPlan(destination: string, duration: number, style: ItineraryStyle, notes: string): Promise<TravelPlan> {
+  const cacheKey = `plan:${destination}:${duration}:${style}:${notes}`;
   const cachedData = getFromCache<TravelPlan>(cacheKey);
   if (cachedData) {
     return cachedData;
   }
 
-  let styleInstruction = "The itinerary should include a good mix of both popular tourist attractions and off-beat local experiences.";
-  if (style === 'Touristy') {
-    styleInstruction = "The itinerary should focus exclusively on popular, well-known tourist attractions.";
-  } else if (style === 'Off-beat') {
-    styleInstruction = "The itinerary should focus exclusively on unique, off-the-beaten-path experiences and local secrets.";
-  }
+  const prompt = `Create a detailed ${duration}-day travel itinerary for ${destination}.
+Traveler preferences:
+- Style: ${style}
+- Notes: ${notes || 'None'}
 
-  const userRequests = additionalNotes.trim()
-    ? `*   **User Requests:** Please carefully consider and incorporate the following user preferences into the itinerary: "${additionalNotes}"`
-    : "";
+The plan should include:
+1.  A day-by-day itinerary with 2-4 activities per day. For each activity:
+    - Name, city, short description, and whether it's 'Touristy' or 'Off-beat'.
+    - Lat/Lng coordinates.
+    - Estimated duration (e.g., "2-3 hours").
+    - A "Pro Tip" for visiting.
+    - Estimated cost and a breakdown (activities, food).
+    - At least one relevant link (official site, booking page).
+2.  If the itinerary spans multiple cities, include detailed "TravelInfo" for moving between them.
+3.  For each day, provide 2-3 "Keep In Mind" tips (dos, don'ts, warnings, info).
+4.  Provide a list of "OfficialLinks" (e.g., official tourism board, visa info).
+5.  Provide estimated "CityAccommodationCosts" for each city visited, including nights and total cost.
+6.  A concise "optimizationSuggestions" paragraph on how to best execute the plan.
 
-
-  const prompt = `You are an expert travel planner specializing in ${country}.
-Your task is to create a highly optimized and logical travel itinerary.
-
-**Instructions:**
-
-1.  **Generate Itinerary:** Create a day-by-day plan for a ${duration}-day trip.
-    *   **Style:** ${styleInstruction}
-    *   **Travel Between Cities:** If a day begins in a new city (different from where the previous day ended), you **must** include a \`travelInfo\` object for that day. This object must detail the journey from the previous city to the new one. Provide 2-3 realistic and diverse transportation \`options\` (e.g., a flight, a train, and a bus) where applicable. For each option, include the mode of transport, estimated travel duration, and the cost in USD per person. This should happen at the beginning of the day.
-    *   **Daily Structure:** For each day, provide a day number, a creative title, and a list of 2-4 activities.
-    *   **Activity Details:** For each activity, you **must** provide:
-        1.  Its name.
-        2.  A short description (1-2 sentences).
-        3.  The city where it's located.
-        4.  Classification as 'Touristy' or 'Off-beat'.
-        5.  The estimated time taken for the activity (e.g., "2-3 hours", "Half day").
-        6.  An estimated average cost per person in USD.
-        7.  A cost breakdown into 'accommodation', 'food', and 'activities'. For most activities, 'accommodation' will be 0. Include 'food' costs only if it's a primary part of the experience (like a food tour). 'activities' should be the ticket/entrance fee. The total 'averageCost' must be the sum of the breakdown. If an activity is free, all cost values should be 0.
-        8.  The precise latitude for the activity.
-        9.  The precise longitude for the activity.
-        10. Up to 2 relevant informational links (e.g., official website, Wikipedia page).
-    *   **Logical Flow:** Ensure daily activities are geographically grouped.
-    *   **Keep in Mind Section:** For each day, provide a "Keep in Mind" section as an array of tip objects. Each object must have a 'type' ('do', 'dont', 'warning', 'info') and the 'tip' text. The 'tip' text itself should be the advice, without prefixes like "Do:" or "Warning:". Include crucial advice, with at least one 'do', one 'dont', and one 'warning' about a specific, relevant scam if common.
-    ${userRequests}
-
-2.  **Calculate Accommodation Costs:** For each distinct city visited in the itinerary, calculate the total estimated accommodation cost. Base this on the average price of a good 4-star hotel in that city. Provide the city name, the total number of nights spent there, and the total estimated cost in USD.
-
-3.  **Provide Official Links:** List up to 4 highly relevant official tourism links for ${country} (e.g., national tourism board, national parks). For each, provide a concise title and the full URL.
-
-4.  **Review and Optimize:** Write a summary of optimization suggestions (e.g., best order to visit attractions, morning/afternoon splits).`;
+Return a single JSON object matching the provided schema.`;
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
-        responseSchema: getBaseTravelPlanSchema(),
+        responseSchema: travelPlanSchema,
       },
     });
-
-    const jsonText = response.text.trim();
-    const plan: TravelPlan = JSON.parse(jsonText);
-    
-    setInCache(cacheKey, plan);
-    return plan;
+    const data = JSON.parse(response.text.trim());
+    setInCache(cacheKey, data);
+    return data;
   } catch (error) {
-    throw new Error(parseApiError(error, "generating the travel plan"));
+    throw new Error(parseApiError(error, `creating a travel plan for ${destination}`));
   }
 }
 
-export async function getComprehensiveTravelPlan(country: string, style: ItineraryStyle, additionalNotes: string): Promise<TravelPlan> {
-    const cacheKey = `comprehensive-plan:${country}:${style}:${additionalNotes.trim()}`;
-    const cachedData = getFromCache<TravelPlan>(cacheKey);
-    if (cachedData) {
-        return cachedData;
-    }
+export async function getComprehensiveTravelPlan(destination: string, style: ItineraryStyle, notes: string): Promise<TravelPlan> {
+  const cacheKey = `comprehensive-plan:${destination}:${style}:${notes}`;
+  const cachedData = getFromCache<TravelPlan>(cacheKey);
+  if (cachedData) {
+    return cachedData;
+  }
+  
+  const prompt = `Create a comprehensive, full-country tour itinerary for ${destination}. You decide the optimal duration (between 7 and 14 days) to cover the main highlights without rushing.
+Traveler preferences:
+- Style: ${style}
+- Notes: ${notes || 'None'}
 
-    let styleInstruction = "The itinerary should include a good mix of both popular tourist attractions and off-beat local experiences.";
-    if (style === 'Touristy') {
-        styleInstruction = "The itinerary should focus exclusively on popular, well-known tourist attractions.";
-    } else if (style === 'Off-beat') {
-        styleInstruction = "The itinerary should focus exclusively on unique, off-the-beaten-path experiences and local secrets.";
-    }
+The plan must include:
+1.  An optimal duration decided by you.
+2.  A day-by-day itinerary. For each activity:
+    - Name, city, short description, and whether it's 'Touristy' or 'Off-beat'.
+    - Lat/Lng coordinates.
+    - Estimated duration.
+    - A "Pro Tip".
+    - Estimated cost and a breakdown.
+    - At least one relevant link.
+3.  "TravelInfo" for moving between cities.
+4.  Daily "Keep In Mind" tips.
+5.  "OfficialLinks".
+6.  "CityAccommodationCosts".
+7.  "optimizationSuggestions".
 
-    const userRequests = additionalNotes.trim()
-        ? `*   **User Requests:** Please carefully consider and incorporate the following user preferences into the itinerary: "${additionalNotes}"`
-        : "";
+Return a single JSON object matching the provided schema.`;
 
-    const prompt = `You are an expert travel planner specializing in ${country}.
-Your task is to create a comprehensive, optimized, and logical travel itinerary that covers the entire country.
-
-**Instructions:**
-
-1.  **Determine Optimal Duration:** First, decide the ideal number of days required for a long, exhaustive, and comprehensive tour of the main regions and attractions of ${country}. The goal is to create a detailed, extended itinerary that allows a traveler to deeply explore the country, not just see the highlights. Prioritize creating a longer, more in-depth plan over a shorter, rushed one. Do not feel constrained by typical vacation lengths.
-2.  **Generate Itinerary:** Create a day-by-day plan for the duration you determined.
-    *   **Style:** ${styleInstruction}
-    *   **Travel Between Cities:** If a day begins in a new city (different from where the previous day ended), you **must** include a \`travelInfo\` object for that day. This object must detail the journey from the previous city to the new one. Provide 2-3 realistic and diverse transportation \`options\` (e.g., a flight, a train, and a bus) where applicable. For each option, include the mode of transport, estimated travel duration, and the cost in USD per person. This should happen at the beginning of the day.
-    *   **Daily Structure:** For each day, provide a day number, a creative title, and a list of 2-4 activities.
-    *   **Activity Details:** For each activity, you **must** provide:
-        1.  Its name.
-        2.  A short description (1-2 sentences).
-        3.  The city where it's located.
-        4.  Classification as 'Touristy' or 'Off-beat'.
-        5.  The estimated time taken for the activity (e.g., "2-3 hours", "Half day").
-        6.  An estimated average cost per person in USD.
-        7.  A cost breakdown into 'accommodation', 'food', and 'activities' as per standard rules (accommodation is usually 0, etc.).
-        8.  The precise latitude and longitude.
-        9.  Up to 2 relevant informational links (e.g., official website, Wikipedia page).
-    *   **Logical Flow:** Ensure the entire itinerary flows logically from one region to the next, minimizing backtracking. Daily activities must be geographically grouped.
-    *   **Keep in Mind Section:** For each day, provide a "Keep in Mind" section as an array of tip objects, each with a 'type' ('do', 'dont', 'warning', 'info') and 'tip' text (without prefixes). Include relevant dos, don'ts, and scam warnings.
-    ${userRequests}
-3.  **Calculate Accommodation Costs:** For each distinct city visited in the itinerary, calculate the total estimated accommodation cost. Base this on the average price of a good 4-star hotel in that city. Provide the city name, the total number of nights spent there, and the total estimated cost in USD.
-4.  **Provide Official Links:** List up to 4 highly relevant official tourism links for ${country}.
-5.  **Review and Optimize:** Write a summary of optimization suggestions for the entire trip.`;
-
-    try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: getBaseTravelPlanSchema(),
-            },
-        });
-
-        const jsonText = response.text.trim();
-        const plan: TravelPlan = JSON.parse(jsonText);
-        
-        setInCache(cacheKey, plan);
-        return plan;
-
-    } catch (error) {
-        throw new Error(parseApiError(error, "generating the comprehensive travel plan"));
-    }
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: travelPlanSchema,
+      },
+    });
+    const data = JSON.parse(response.text.trim());
+    setInCache(cacheKey, data);
+    return data;
+  } catch (error) {
+    throw new Error(parseApiError(error, `creating a comprehensive travel plan for ${destination}`));
+  }
 }
 
+export async function rebuildTravelPlan(destination: string, duration: number, style: ItineraryStyle, existingPlan: DailyPlan[], refinementNotes: string): Promise<TravelPlan> {
+  // Caching is intentionally disabled for rebuilds to ensure fresh results based on user feedback.
+  
+  const prompt = `You are a travel agent refining an existing plan.
+Destination: ${destination}
+Duration: ${duration} days
+Style: ${style}
 
-export async function rebuildTravelPlan(country: string, duration: number, style: ItineraryStyle, existingActivities: DailyPlan[], additionalNotes: string): Promise<TravelPlan> {
-    let styleInstruction = "The itinerary should include a good mix of both popular tourist attractions and off-beat local experiences.";
-    if (style === 'Touristy') {
-        styleInstruction = "The itinerary should focus exclusively on popular, well-known tourist attractions.";
-    } else if (style === 'Off-beat') {
-        styleInstruction = "The itinerary should focus exclusively on unique, off-the-beaten-path experiences and local secrets.";
-    }
+Here is the current plan that the user wants to modify:
+${JSON.stringify(existingPlan, null, 2)}
 
-    const userRequests = additionalNotes.trim()
-        ? `*   **User Requests:** Please carefully consider and incorporate the following user preferences into the itinerary: "${additionalNotes}"`
-        : "";
+Here are the user's refinement notes:
+"${refinementNotes}"
 
-    // We only need the activity details for the prompt, not the day structure or links
-    const activityList = existingActivities.flatMap(day => day.activities.map(({ name, description, city, type, averageCost, costBreakdown, lat, lng, duration }) => ({ name, description, city, type, averageCost, costBreakdown, lat, lng, duration })));
+Please modify the plan based on the notes. You can add, remove, or reorder activities, or even change cities if requested. Ensure the new plan is coherent and still fits the duration.
 
-    const prompt = `You are an expert travel planner specializing in ${country}.
-A user has modified their itinerary and wants you to re-optimize it.
+Return the complete, updated travel plan as a single JSON object matching the provided schema. It must include all parts: itinerary, optimizationSuggestions, officialLinks, and cityAccommodationCosts.`;
 
-**Instructions:**
-
-1.  **Rebuild Itinerary:** The user has provided the following list of activities they want to do. Create a new, optimized ${duration}-day itinerary using **only** these activities. Do not add or remove any activities from this list.
-    *   **User's Selected Activities:**
-        \`\`\`json
-        ${JSON.stringify(activityList, null, 2)}
-        \`\`\`
-    *   **Style:** ${styleInstruction}
-    *   **Travel Between Cities:** As you group activities, if a day starts in a city different from where the previous day ended, you **must** generate and include a \`travelInfo\` object. This should detail the journey from the previous city to the new one. Provide 2-3 realistic and diverse transportation \`options\` (e.g., a flight, a train, and a bus) where applicable. For each option, include the mode of transport, estimated travel duration, and cost in USD per person.
-    *   **Logic:** Group the activities logically and geographically for each day into a ${duration}-day plan.
-    *   **Structure:** For each day, provide a day number, a creative title, and the list of activities. For each activity, retain its original details. 
-    *   **Cost, Location & Links:** If an activity is missing latitude, longitude, or city, you must find them. If an activity is missing its duration, you must estimate one. Ensure the cost breakdown rules are followed (e.g., 'accommodation' is usually 0, 'averageCost' is the sum of the breakdown). You must also generate up to 2 relevant informational links for each activity.
-    *   **Keep in Mind Section:** Based on the newly arranged activities for each day, generate a *new* "Keep in Mind" section as an array of tip objects. Each object must have a 'type' ('do', 'dont', 'warning', 'info') and 'tip' text (without prefixes). Include relevant dos, don'ts, and scam warnings.
-    ${userRequests}
-
-2.  **Calculate Accommodation Costs:** Based on the newly arranged itinerary, for each distinct city visited, calculate the total estimated accommodation cost. Base this on the average price of a good 4-star hotel in that city. Provide the city name, the total number of nights spent there, and the total estimated cost in USD.
-
-3.  **Provide Official Links:** List up to 4 highly relevant official tourism links for ${country}.
-
-4.  **Review and Optimize:** Write a *new* summary of optimization suggestions based on the rebuilt itinerary.`;
-
-    try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: getBaseTravelPlanSchema(),
-            },
-        });
-
-        const jsonText = response.text.trim();
-        const plan: TravelPlan = JSON.parse(jsonText);
-        
-        return plan;
-    } catch (error) {
-        throw new Error(parseApiError(error, "rebuilding the travel plan"));
-    }
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: travelPlanSchema,
+      },
+    });
+    const data = JSON.parse(response.text.trim());
+    return data;
+  } catch (error) {
+    throw new Error(parseApiError(error, `rebuilding the travel plan for ${destination}`));
+  }
 }
 
 export async function getPackingList(destination: string, duration: number, activities: ItineraryLocation[]): Promise<PackingListCategory[]> {
-    const activitySummary = [...new Set(activities.map(a => a.type === 'Off-beat' ? a.name : a.type))].join(', ');
-    const cacheKey = `packing-list:${destination}:${duration}:${activitySummary}`;
-    const cachedData = getFromCache<PackingListCategory[]>(cacheKey);
-    if (cachedData) {
-        return cachedData;
-    }
+  const activityNames = activities.map(a => a.name).join(', ');
+  const cacheKey = `packing-list:${destination}:${duration}:${activityNames}`;
+  const cachedData = getFromCache<PackingListCategory[]>(cacheKey);
+  if (cachedData) {
+    return cachedData;
+  }
 
-    const prompt = `You are an expert travel packer. A user is planning a ${duration}-day trip to ${destination}.
-Their planned activities include: ${activitySummary}.
+  const prompt = `Create a detailed packing list for a ${duration}-day trip to ${destination}.
+The traveler will be doing the following activities: ${activityNames}.
+Group the items into logical categories (e.g., 'Clothing', 'Toiletries', 'Documents', 'Electronics', 'Miscellaneous').
+Be specific and practical.
 
-Generate a comprehensive, personalized packing list.
-- Base suggestions on the typical climate and weather of ${destination}.
-- Recommend quantities appropriate for a ${duration}-day trip (e.g., "5 T-shirts").
-- Categorize items into logical groups: "Documents & Money", "Clothing", "Toiletries", "Electronics", and "Miscellaneous".
-- Do not add a 'Notes' or 'Tips' category. Only include physical items.`;
+Return the packing list as an array of categories in the specified JSON format.`;
 
-    try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            categoryName: { type: Type.STRING },
-                            items: {
-                                type: Type.ARRAY,
-                                items: { type: Type.STRING }
-                            }
-                        },
-                        required: ["categoryName", "items"]
-                    }
-                },
-            },
-        });
-
-        const jsonText = response.text.trim();
-        const packingList: PackingListCategory[] = JSON.parse(jsonText);
-        setInCache(cacheKey, packingList);
-        return packingList;
-    } catch (error) {
-        throw new Error(parseApiError(error, "generating the packing list"));
-    }
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: packingListSchema,
+      },
+    });
+    const data = JSON.parse(response.text.trim());
+    setInCache(cacheKey, data);
+    return data;
+  } catch (error) {
+    throw new Error(parseApiError(error, `generating a packing list for ${destination}`));
+  }
 }

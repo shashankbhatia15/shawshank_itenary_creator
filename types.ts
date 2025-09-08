@@ -32,6 +32,7 @@ export interface ItineraryLocation {
   lat: number;
   lng: number;
   duration?: string;
+  visitingTip?: string;
 }
 
 export interface TransportOption {

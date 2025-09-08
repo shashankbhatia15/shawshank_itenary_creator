@@ -213,6 +213,20 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ location, onDelete, onDragS
                     
                     <p className="text-slate-400 text-sm">{location.description}</p>
 
+                    {location.visitingTip && (
+                        <div className="mt-3 pt-3 border-t border-slate-700/50">
+                             <div className="bg-slate-700/50 p-3 rounded-md flex items-start gap-3">
+                                <div className="flex-shrink-0 text-cyan-400 pt-0.5">
+                                    <LightbulbTipIcon />
+                                </div>
+                                <div>
+                                    <h5 className="font-semibold text-cyan-300 text-sm">Pro Tip</h5>
+                                    <p className="text-slate-300 text-sm">{location.visitingTip}</p>
+                                </div>
+                             </div>
+                        </div>
+                    )}
+
                     {location.links && location.links.length > 0 && (
                         <div className="mt-3 pt-3 border-t border-slate-700/50">
                              <h5 className="text-xs font-bold text-slate-400 mb-2">Relevant Links</h5>
