@@ -40,6 +40,7 @@ const App: React.FC = () => {
           visaInfo: countryInfo.visaInfo,
           averageCost: countryInfo.averageCost,
           costBreakdown: countryInfo.costBreakdown,
+          currencyInfo: countryInfo.currencyInfo,
         };
         handleSelectDestination(directDestination);
       } else {

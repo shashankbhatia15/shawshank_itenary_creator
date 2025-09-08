@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import jsPDF from 'jspdf';
-import type { TravelPlan, DestinationSuggestion, DailyPlan, ItineraryLocation, PackingListCategory } from '../types';
+import type { TravelPlan, DestinationSuggestion, DailyPlan, ItineraryLocation, PackingListCategory, CurrencyInfo } from '../types';
 import InteractiveMap from './InteractiveMap';
 import TripTimelineChart from './TripTimelineChart';
 import PackingListModal from './PackingListModal';
@@ -24,6 +24,23 @@ interface TravelPlanProps {
   onTogglePackingItem: (item: string) => void;
   onAddItemToPackingList: (categoryName: string, item: string) => void;
 }
+
+// --- Helper Components ---
+const CostDisplay: React.FC<{ usd: number; currencyInfo: CurrencyInfo; className?: string }> = ({ usd, currencyInfo, className = '' }) => {
+    if (!currencyInfo || usd <= 0) return <span className={className}>Free</span>;
+
+    const inr = usd * currencyInfo.usdToInrRate;
+    const local = usd * currencyInfo.usdToLocalRate;
+
+    return (
+        <span className={className}>
+            ₹{inr.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+            <span className="text-slate-400 text-xs ml-1 font-normal">
+                ({currencyInfo.symbol}{local.toLocaleString(undefined, { maximumFractionDigits: 0 })})
+            </span>
+        </span>
+    );
+};
 
 // --- Icon Components ---
 
@@ -133,6 +150,7 @@ const LightbulbTipIcon = () => (
 
 interface ActivityCardProps {
     location: ItineraryLocation;
+    currencyInfo: CurrencyInfo;
     onDelete: () => void;
     onDragStart: (e: React.DragEvent) => void;
     onDragEnd: (e: React.DragEvent) => void;
@@ -146,7 +164,7 @@ interface ActivityCardProps {
     onHighlight: () => void;
 }
 
-const ActivityCard: React.FC<ActivityCardProps> = ({ location, onDelete, onDragStart, onDragEnd, onDragOver, onDrop, onDragEnter, isDragging, isDragOver, isPotentialDropTarget, isHighlighted, onHighlight }) => {
+const ActivityCard: React.FC<ActivityCardProps> = ({ location, currencyInfo, onDelete, onDragStart, onDragEnd, onDragOver, onDrop, onDragEnter, isDragging, isDragOver, isPotentialDropTarget, isHighlighted, onHighlight }) => {
     const baseClasses = 'bg-slate-800/50 p-4 rounded-lg border transition-all group cursor-pointer';
     
     let conditionalClasses = '';
@@ -187,7 +205,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ location, onDelete, onDragS
                                 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                                 : 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
                             }`}>
-                                {location.averageCost > 0 ? `~$${location.averageCost}` : 'Free'}
+                                <CostDisplay usd={location.averageCost} currencyInfo={currencyInfo} />
                             </span>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0 ml-2">
@@ -250,19 +268,19 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ location, onDelete, onDragS
                                 {location.costBreakdown.activities > 0 && (
                                     <li className="flex justify-between items-center">
                                         <span>🎟️ Activity / Ticket</span>
-                                        <span className="font-mono text-slate-200">${location.costBreakdown.activities.toLocaleString()}</span>
+                                        <span className="font-mono text-slate-200"><CostDisplay usd={location.costBreakdown.activities} currencyInfo={currencyInfo}/></span>
                                     </li>
                                 )}
                                 {location.costBreakdown.food > 0 && (
                                     <li className="flex justify-between items-center">
                                         <span>🍜 Food / Dining</span>
-                                        <span className="font-mono text-slate-200">${location.costBreakdown.food.toLocaleString()}</span>
+                                        <span className="font-mono text-slate-200"><CostDisplay usd={location.costBreakdown.food} currencyInfo={currencyInfo}/></span>
                                     </li>
                                 )}
                                 {location.costBreakdown.accommodation > 0 && (
                                     <li className="flex justify-between items-center">
                                         <span>🏠 Accommodation</span>
-                                        <span className="font-mono text-slate-200">${location.costBreakdown.accommodation.toLocaleString()}</span>
+                                        <span className="font-mono text-slate-200"><CostDisplay usd={location.costBreakdown.accommodation} currencyInfo={currencyInfo}/></span>
                                     </li>
                                 )}
                             </ul>
@@ -279,6 +297,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ location, onDelete, onDragS
 interface DailyPlanCardProps {
     dailyPlan: DailyPlan;
     dayIndex: number;
+    currencyInfo: CurrencyInfo;
     draggedActivityId: string | null;
     setDraggedActivityId: (id: string | null) => void;
     dragOverActivityId: string | null;
@@ -290,7 +309,7 @@ interface DailyPlanCardProps {
     onShowMap: () => void;
 }
 
-const DailyPlanCard: React.FC<DailyPlanCardProps> = ({ dailyPlan, dayIndex, draggedActivityId, setDraggedActivityId, dragOverActivityId, setDragOverActivityId, onDeleteActivity, onReorderActivities, highlightedActivityId, onActivityHighlight, onShowMap }) => {
+const DailyPlanCard: React.FC<DailyPlanCardProps> = ({ dailyPlan, dayIndex, currencyInfo, draggedActivityId, setDraggedActivityId, dragOverActivityId, setDragOverActivityId, onDeleteActivity, onReorderActivities, highlightedActivityId, onActivityHighlight, onShowMap }) => {
 
     const handleDragStart = (e: React.DragEvent, activityId: string) => {
         setDraggedActivityId(activityId);
@@ -335,7 +354,7 @@ const DailyPlanCard: React.FC<DailyPlanCardProps> = ({ dailyPlan, dayIndex, drag
                                             <span>{option.duration}</span>
                                         </div>
                                         <div className="flex items-center gap-1.5 text-slate-300 font-mono bg-slate-700/50 px-2 py-1 rounded">
-                                            <span>~${option.cost.toLocaleString()}</span>
+                                            <CostDisplay usd={option.cost} currencyInfo={currencyInfo} />
                                         </div>
                                     </div>
                                 </div>
@@ -367,6 +386,7 @@ const DailyPlanCard: React.FC<DailyPlanCardProps> = ({ dailyPlan, dayIndex, drag
                     <ActivityCard
                         key={activity.id}
                         location={activity}
+                        currencyInfo={currencyInfo}
                         isHighlighted={highlightedActivityId === activity.id}
                         onHighlight={() => onActivityHighlight(activity.id)}
                         onDelete={() => onDeleteActivity(dayIndex, activity.id)}
@@ -445,7 +465,7 @@ const DailyPlanCard: React.FC<DailyPlanCardProps> = ({ dailyPlan, dayIndex, drag
 // --- Main Travel Plan Component ---
 
 const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onReset, onBack, onDeleteActivity, onReorderActivities, onRebuildPlan, onOpenSaveModal, isPlanModified, isLoading, onError, onUpdatePackingList, onTogglePackingItem, onAddItemToPackingList }) => {
-    const totalEstimatedCost = destination.averageCost > 0
+    const totalEstimatedCostUsd = destination.averageCost > 0
         ? Math.round((destination.averageCost / 7) * plan.itinerary.length)
         : 0;
 
@@ -461,6 +481,10 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onR
 
 
     const showRebuildButton = isPlanModified || refinementNotes.trim() !== '';
+
+    const { currencyInfo } = destination;
+    const localToInrRate = currencyInfo.usdToInrRate / currencyInfo.usdToLocalRate;
+    const inrToLocalRate = 1 / localToInrRate;
 
     const costSummary = useMemo(() => {
         if (!plan || !destination) {
@@ -639,7 +663,7 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onR
                     pdf.setFont('helvetica', 'bold');
                     pdf.text(cost.city, margin, yPos);
                     
-                    const costText = `~$${cost.estimatedCost.toLocaleString()} for ${cost.nights} night${cost.nights > 1 ? 's' : ''}`;
+                    const costText = `~₹${(cost.estimatedCost * currencyInfo.usdToInrRate).toLocaleString('en-IN', {maximumFractionDigits: 0})} for ${cost.nights} night${cost.nights > 1 ? 's' : ''}`;
                     pdf.setFont('helvetica', 'normal');
                     pdf.setTextColor(SECONDARY_TEXT_COLOR);
                     pdf.text(costText, pdfWidth - margin, yPos, { align: 'right' });
@@ -690,7 +714,7 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onR
                 pdf.text(item.label, margin, yPos);
     
                 pdf.setFont('helvetica', 'bold');
-                pdf.text(`$${item.value.toLocaleString()}`, pdfWidth - margin, yPos, { align: 'right' });
+                pdf.text(`₹${(item.value * currencyInfo.usdToInrRate).toLocaleString('en-IN', {maximumFractionDigits: 0})}`, pdfWidth - margin, yPos, { align: 'right' });
                 yPos += 20;
             });
     
@@ -705,7 +729,7 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onR
             pdf.setTextColor(PRIMARY_TEXT_COLOR);
             pdf.text('Grand Total (per person)', margin, yPos);
             pdf.setFontSize(14);
-            pdf.text(`~$${costSummary.grandTotal.toLocaleString()}`, pdfWidth - margin, yPos, { align: 'right' });
+            pdf.text(`~₹${(costSummary.grandTotal * currencyInfo.usdToInrRate).toLocaleString('en-IN', {maximumFractionDigits: 0})}`, pdfWidth - margin, yPos, { align: 'right' });
             yPos += 25;
     
     
@@ -762,7 +786,8 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onR
                         // --- Render BOLD part ---
                         pdf.setFont('helvetica', 'bold');
                         pdf.setTextColor(PRIMARY_TEXT_COLOR);
-                        const boldText = `${opt.mode}: ${opt.duration}, ~$${opt.cost} USD`;
+                        const costInr = (opt.cost * currencyInfo.usdToInrRate).toLocaleString('en-IN', {maximumFractionDigits: 0});
+                        const boldText = `${opt.mode}: ${opt.duration}, ~₹${costInr}`;
                         
                         pdf.text(boldText, currentX, yPos);
                         currentX += pdf.getTextWidth(boldText) + 4; // Add 4pt space
@@ -816,7 +841,8 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onR
                     pdf.setFontSize(9);
                     pdf.setFont('helvetica', 'normal');
                     pdf.setTextColor(SECONDARY_TEXT_COLOR);
-                    const details = `${activity.type} | ${activity.duration} | ${activity.averageCost > 0 ? `~$${activity.averageCost}` : 'Free'}`;
+                    const costText = activity.averageCost > 0 ? `~₹${(activity.averageCost * currencyInfo.usdToInrRate).toLocaleString('en-IN', {maximumFractionDigits: 0})}` : 'Free';
+                    const details = `${activity.type} | ${activity.duration} | ${costText}`;
                     pdf.text(details, margin, yPos);
                     yPos += 15;
     
@@ -862,7 +888,7 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onR
 
                                 pdf.setTextColor(PRIMARY_TEXT_COLOR);
                                 pdf.setFont('helvetica', 'bold');
-                                pdf.text(`$${item.value.toLocaleString()}`, pdfWidth - margin, yPos, { align: 'right' });
+                                pdf.text(`₹${(item.value * currencyInfo.usdToInrRate).toLocaleString('en-IN', {maximumFractionDigits: 0})}`, pdfWidth - margin, yPos, { align: 'right' });
                                 yPos += 12;
                                 pdf.setFont('helvetica', 'normal');
                             });
@@ -949,14 +975,19 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onR
                                 <CalendarIcon />
                                 <span className="text-lg">{plan.itinerary.length} Day Adventure</span>
                             </div>
-                            {totalEstimatedCost > 0 && (
+                            {totalEstimatedCostUsd > 0 && (
                                 <div className="flex items-center gap-2">
                                     <MoneyIcon />
                                     <span className="text-lg">
-                                        Est. Budget: ~${totalEstimatedCost.toLocaleString()}
+                                        Est. Budget: <CostDisplay usd={totalEstimatedCostUsd} currencyInfo={currencyInfo} className="font-semibold" />
                                     </span>
                                 </div>
                             )}
+                        </div>
+                        <div className="mt-4 text-sm text-cyan-200 bg-cyan-900/50 inline-block px-3 py-1 rounded-full">
+                           <p>
+                             <strong>Conversion Rates (approx.):</strong> 1 {currencyInfo.code} ≈ ₹{localToInrRate.toFixed(2)} | ₹1 ≈ {currencyInfo.symbol}{inrToLocalRate.toFixed(2)}
+                           </p>
                         </div>
                     </div>
 
@@ -976,7 +1007,9 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onR
                                             <div className="font-semibold text-slate-200">{cost.city}</div>
                                             <div className="flex items-center gap-4 text-slate-300">
                                                 <span>{cost.nights} night{cost.nights > 1 ? 's' : ''}</span>
-                                                <span className="font-mono text-white bg-slate-900/40 px-3 py-1 rounded-md text-sm">~${cost.estimatedCost.toLocaleString()}</span>
+                                                <span className="font-mono text-white bg-slate-900/40 px-3 py-1 rounded-md text-sm">
+                                                    <CostDisplay usd={cost.estimatedCost} currencyInfo={currencyInfo} />
+                                                </span>
                                             </div>
                                         </li>
                                     ))}
@@ -1018,32 +1051,32 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onR
                                 <li className="flex justify-between items-center bg-slate-700/50 p-3 rounded-lg">
                                     <span className="font-semibold text-slate-200">🏠 Accommodation</span>
                                     <span className="font-mono text-white bg-slate-900/40 px-3 py-1 rounded-md text-sm">
-                                        ${costSummary.accommodation.toLocaleString()}
+                                        <CostDisplay usd={costSummary.accommodation} currencyInfo={currencyInfo} />
                                     </span>
                                 </li>
                                 <li className="flex justify-between items-center bg-slate-700/50 p-3 rounded-lg">
                                     <span className="font-semibold text-slate-200">🎟️ Activities</span>
                                     <span className="font-mono text-white bg-slate-900/40 px-3 py-1 rounded-md text-sm">
-                                        ${costSummary.activities.toLocaleString()}
+                                        <CostDisplay usd={costSummary.activities} currencyInfo={currencyInfo} />
                                     </span>
                                 </li>
                                 <li className="flex justify-between items-center bg-slate-700/50 p-3 rounded-lg">
                                     <span className="font-semibold text-slate-200">✈️ Inter-city Travel</span>
                                     <span className="font-mono text-white bg-slate-900/40 px-3 py-1 rounded-md text-sm">
-                                        ${costSummary.travel.toLocaleString()}
+                                        <CostDisplay usd={costSummary.travel} currencyInfo={currencyInfo} />
                                     </span>
                                 </li>
                                 <li className="flex justify-between items-center bg-slate-700/50 p-3 rounded-lg">
                                     <span className="font-semibold text-slate-200">🍜 Food & Dining</span>
                                     <span className="font-mono text-white bg-slate-900/40 px-3 py-1 rounded-md text-sm">
-                                        ${costSummary.food.toLocaleString()}
+                                        <CostDisplay usd={costSummary.food} currencyInfo={currencyInfo} />
                                     </span>
                                 </li>
                             </ul>
                             <div className="mt-6 pt-4 border-t border-slate-700 flex justify-between items-center">
                                 <span className="text-lg font-bold text-cyan-300">Grand Total (per person)</span>
                                 <span className="text-xl font-bold font-mono text-white bg-cyan-600/50 px-4 py-2 rounded-lg">
-                                    ~${costSummary.grandTotal.toLocaleString()}
+                                    <CostDisplay usd={costSummary.grandTotal} currencyInfo={currencyInfo} />
                                 </span>
                             </div>
                             <p className="text-xs text-slate-500 mt-4 text-center">
@@ -1075,6 +1108,7 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onR
                                 <DailyPlanCard
                                     dailyPlan={dailyPlan}
                                     dayIndex={index}
+                                    currencyInfo={currencyInfo}
                                     draggedActivityId={draggedActivityId}
                                     setDraggedActivityId={setDraggedActivityId}
                                     dragOverActivityId={dragOverActivityId}

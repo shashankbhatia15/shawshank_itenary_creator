@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import type { DestinationSuggestion, TravelPlan, ItineraryStyle, CostBreakdown, DailyPlan, ItineraryLocation, PackingListCategory } from '../types';
+import type { DestinationSuggestion, TravelPlan, ItineraryStyle, CostBreakdown, DailyPlan, ItineraryLocation, PackingListCategory, CurrencyInfo } from '../types';
 
 if (!process.env.API_KEY) {
   throw new Error("API_KEY environment variable is not set");
@@ -114,6 +114,17 @@ function parseApiError(error: unknown, context: string): string {
 
 // --- Response Schemas ---
 
+const currencyInfoSchema = {
+  type: Type.OBJECT,
+  properties: {
+    code: { type: Type.STRING, description: "The 3-letter currency code, e.g., EUR" },
+    symbol: { type: Type.STRING, description: "The currency symbol, e.g., €" },
+    usdToLocalRate: { type: Type.NUMBER, description: "Approximate conversion rate from 1 USD to the local currency." },
+    usdToInrRate: { type: Type.NUMBER, description: "Approximate conversion rate from 1 USD to Indian Rupees (INR)." },
+  },
+  required: ['code', 'symbol', 'usdToLocalRate', 'usdToInrRate'],
+};
+
 const costBreakdownSchema = {
   type: Type.OBJECT,
   properties: {
@@ -131,8 +142,9 @@ const directCountryInfoSchema = {
     visaInfo: { type: Type.STRING, description: "A summary of visa requirements for Indian citizens, mentioning e-visa or visa on arrival availability." },
     averageCost: { type: Type.NUMBER, description: "An estimated total average cost in USD for a solo traveler for a 7-day trip." },
     costBreakdown: costBreakdownSchema,
+    currencyInfo: currencyInfoSchema,
   },
-  required: ['description', 'visaInfo', 'averageCost', 'costBreakdown'],
+  required: ['description', 'visaInfo', 'averageCost', 'costBreakdown', 'currencyInfo'],
 };
 
 const destinationSuggestionSchema = {
@@ -144,8 +156,9 @@ const destinationSuggestionSchema = {
     visaInfo: { type: Type.STRING, description: "A summary of visa requirements for Indian citizens, mentioning e-visa or visa on arrival availability." },
     averageCost: { type: Type.NUMBER, description: "An estimated total average cost in USD for a solo traveler for a 7-day trip." },
     costBreakdown: costBreakdownSchema,
+    currencyInfo: currencyInfoSchema,
   },
-  required: ['name', 'country', 'description', 'visaInfo', 'averageCost', 'costBreakdown'],
+  required: ['name', 'country', 'description', 'visaInfo', 'averageCost', 'costBreakdown', 'currencyInfo'],
 };
 
 const travelSuggestionsSchema = {
@@ -268,9 +281,9 @@ const packingListSchema = {
 
 // --- API Functions ---
 
-export async function getDirectCountryInfo(countryName: string): Promise<{ description: string; visaInfo: string; averageCost: number; costBreakdown: CostBreakdown; }> {
-  const cacheKey = `country-info:${countryName.trim().toLowerCase()}`;
-  const cachedData = getFromCache<{ description: string; visaInfo: string; averageCost: number; costBreakdown: CostBreakdown; }>(cacheKey);
+export async function getDirectCountryInfo(countryName: string): Promise<{ description: string; visaInfo: string; averageCost: number; costBreakdown: CostBreakdown; currencyInfo: CurrencyInfo; }> {
+  const cacheKey = `country-info-v2:${countryName.trim().toLowerCase()}`;
+  const cachedData = getFromCache<{ description: string; visaInfo: string; averageCost: number; costBreakdown: CostBreakdown; currencyInfo: CurrencyInfo; }>(cacheKey);
   if (cachedData) {
     return cachedData;
   }
@@ -282,7 +295,8 @@ export async function getDirectCountryInfo(countryName: string): Promise<{ descr
 1. A short, compelling description of why it's a good travel destination (2-3 sentences).
 2. A summary of visa requirements for Indian citizens. Specifically mention if an e-visa or visa on arrival is available.
 3. An estimated average cost in USD for a solo traveler for a 7-day trip.
-4. A simple cost breakdown (Accommodation, Food, Activities) for that 7-day trip.
+4. A simple cost breakdown (Accommodation, Food, Activities) for that 7-day trip, in USD.
+5. Currency information: the local 3-letter currency code, the currency symbol, an approximate conversion rate from 1 USD to the local currency, and from 1 USD to Indian Rupees (INR).
 Return the data in the specified JSON format.`,
       config: {
         responseMimeType: "application/json",
@@ -299,7 +313,7 @@ Return the data in the specified JSON format.`,
 }
 
 export async function getTravelSuggestions(budget: string, timeOfYear: string, continent: string): Promise<DestinationSuggestion[]> {
-  const cacheKey = `suggestions:${budget}:${timeOfYear}:${continent}`;
+  const cacheKey = `suggestions-v2:${budget}:${timeOfYear}:${continent}`;
   const cachedData = getFromCache<DestinationSuggestion[]>(cacheKey);
   if (cachedData) {
     return cachedData;
@@ -308,7 +322,7 @@ export async function getTravelSuggestions(budget: string, timeOfYear: string, c
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: `You are an expert travel agent. Suggest 3 diverse countries for a traveler from India with the following preferences:
+      contents: `You are an expert travel agent. Suggest 5 diverse countries for a traveler from India with the following preferences:
 - Budget: ${budget}
 - Time of Year: ${timeOfYear}
 - Continent: ${continent}
@@ -318,7 +332,8 @@ For each country, provide:
 2. A short, compelling description (2-3 sentences).
 3. A summary of visa requirements for Indian citizens (mention e-visa/visa on arrival).
 4. An estimated average cost in USD for a solo traveler for a 7-day trip.
-5. A simple cost breakdown (Accommodation, Food, Activities) for that 7-day trip.
+5. A simple cost breakdown (Accommodation, Food, Activities) for that 7-day trip, in USD.
+6. Currency information: the local 3-letter currency code, the currency symbol, an approximate conversion rate from 1 USD to the local currency, and from 1 USD to Indian Rupees (INR).
 Return the data as an array in the specified JSON format. Ensure all fields are filled.`,
       config: {
         responseMimeType: "application/json",
@@ -334,7 +349,7 @@ Return the data as an array in the specified JSON format. Ensure all fields are 
 }
 
 export async function getOffBeatSuggestions(): Promise<DestinationSuggestion[]> {
-  const cacheKey = `suggestions:off-beat`;
+  const cacheKey = `suggestions-v2:off-beat`;
   const cachedData = getFromCache<DestinationSuggestion[]>(cacheKey);
   if (cachedData) {
     return cachedData;
@@ -343,14 +358,15 @@ export async function getOffBeatSuggestions(): Promise<DestinationSuggestion[]> 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: `You are a seasoned traveler who loves finding hidden gems. Suggest 3 unique, off-the-beaten-path countries that are great for adventurous travelers from India. Avoid overly common tourist destinations.
+      contents: `You are a seasoned traveler who loves finding hidden gems. Suggest 5 unique, off-the-beaten-path countries that are great for adventurous travelers from India. Avoid overly common tourist destinations.
 
 For each country, provide:
 1. The country name.
 2. A short, compelling description highlighting its unique appeal (2-3 sentences).
 3. A summary of visa requirements for Indian citizens (mention e-visa/visa on arrival).
 4. An estimated average cost in USD for a solo traveler for a 7-day trip.
-5. A simple cost breakdown (Accommodation, Food, Activities) for that 7-day trip.
+5. A simple cost breakdown (Accommodation, Food, Activities) for that 7-day trip, in USD.
+6. Currency information: the local 3-letter currency code, the currency symbol, an approximate conversion rate from 1 USD to the local currency, and from 1 USD to Indian Rupees (INR).
 Return the data as an array in the specified JSON format. Ensure all fields are filled.`,
       config: {
         responseMimeType: "application/json",
@@ -383,12 +399,12 @@ The plan should include:
     - Lat/Lng coordinates.
     - Estimated duration (e.g., "2-3 hours").
     - A "Pro Tip" for visiting.
-    - Estimated cost and a breakdown (activities, food).
+    - Estimated cost in USD and a breakdown (activities, food) in USD.
     - At least one relevant link (official site, booking page).
-2.  If the itinerary spans multiple cities, include detailed "TravelInfo" for moving between them.
+2.  If the itinerary spans multiple cities, include detailed "TravelInfo" for moving between them, with costs in USD.
 3.  For each day, provide 2-3 "Keep In Mind" tips (dos, don'ts, warnings, info).
 4.  Provide a list of "OfficialLinks" (e.g., official tourism board, visa info).
-5.  Provide estimated "CityAccommodationCosts" for each city visited, including nights and total cost.
+5.  Provide estimated "CityAccommodationCosts" in USD for each city visited, including nights and total cost.
 6.  A concise "optimizationSuggestions" paragraph on how to best execute the plan.
 
 Return a single JSON object matching the provided schema.`;
@@ -429,12 +445,12 @@ The plan must include:
     - Lat/Lng coordinates.
     - Estimated duration.
     - A "Pro Tip".
-    - Estimated cost and a breakdown.
+    - Estimated cost in USD and a breakdown.
     - At least one relevant link.
-3.  "TravelInfo" for moving between cities.
+3.  "TravelInfo" for moving between cities, with costs in USD.
 4.  Daily "Keep In Mind" tips.
 5.  "OfficialLinks".
-6.  "CityAccommodationCosts".
+6.  "CityAccommodationCosts" in USD.
 7.  "optimizationSuggestions".
 
 Return a single JSON object matching the provided schema.`;
@@ -470,7 +486,7 @@ ${JSON.stringify(existingPlan, null, 2)}
 Here are the user's refinement notes:
 "${refinementNotes}"
 
-Please modify the plan based on the notes. You can add, remove, or reorder activities, or even change cities if requested. Ensure the new plan is coherent and still fits the duration.
+Please modify the plan based on the notes. You can add, remove, or reorder activities, or even change cities if requested. Ensure the new plan is coherent and still fits the duration. Ensure all costs (activities, travel, accommodation) are in USD.
 
 Return the complete, updated travel plan as a single JSON object matching the provided schema. It must include all parts: itinerary, optimizationSuggestions, officialLinks, and cityAccommodationCosts.`;
 

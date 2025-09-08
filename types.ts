@@ -1,5 +1,12 @@
 
 
+export interface CurrencyInfo {
+  code: string; // e.g., EUR
+  symbol: string; // e.g., €
+  usdToLocalRate: number;
+  usdToInrRate: number;
+}
+
 export interface CostBreakdown {
   accommodation: number;
   food: number;
@@ -11,8 +18,9 @@ export interface DestinationSuggestion {
   country: string; // This can be the same as name or a more formal name
   description: string;
   visaInfo: string;
-  averageCost: number;
-  costBreakdown: CostBreakdown;
+  averageCost: number; // This will remain in USD as the base currency
+  costBreakdown: CostBreakdown; // Also in USD
+  currencyInfo: CurrencyInfo;
 }
 
 export interface ItineraryLink {

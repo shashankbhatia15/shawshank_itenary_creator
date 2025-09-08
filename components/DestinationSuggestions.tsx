@@ -1,5 +1,5 @@
 import React from 'react';
-import type { DestinationSuggestion } from '../types';
+import type { DestinationSuggestion, CurrencyInfo } from '../types';
 
 interface DestinationSuggestionsProps {
   suggestions: DestinationSuggestion[];
@@ -27,6 +27,20 @@ const MoneyIcon = () => (
     </svg>
 );
 
+const CostDisplay: React.FC<{ usd: number; currencyInfo: CurrencyInfo }> = ({ usd, currencyInfo }) => {
+    if (!currencyInfo) return <span>~${usd.toLocaleString()} USD</span>;
+    const inr = usd * currencyInfo.usdToInrRate;
+    const local = usd * currencyInfo.usdToLocalRate;
+
+    return (
+        <span className="font-semibold text-lg">
+            ₹{inr.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+            <span className="text-slate-400 text-sm font-normal ml-1">
+                ({currencyInfo.symbol}{local.toLocaleString(undefined, { maximumFractionDigits: 0 })})
+            </span>
+        </span>
+    );
+};
 
 const DestinationCard: React.FC<{suggestion: DestinationSuggestion, onSelect: () => void, isLoading: boolean}> = ({ suggestion, onSelect, isLoading }) => (
     <div className="bg-slate-800/60 backdrop-blur-sm p-6 rounded-xl shadow-lg border border-slate-700 flex flex-col transition-all duration-300 hover:border-cyan-500 hover:shadow-cyan-500/10">
@@ -44,28 +58,30 @@ const DestinationCard: React.FC<{suggestion: DestinationSuggestion, onSelect: ()
             </div>
              <div className="flex items-start">
                 <MoneyIcon />
-                <p className="text-slate-400 text-sm">
+                <div className="text-slate-400 text-sm">
                     <span className="font-bold text-slate-300 block">Est. 7-Day Trip Cost (Solo):</span>
-                    {suggestion.averageCost > 0 ? `~$${suggestion.averageCost.toLocaleString()} USD` : 'N/A'}
-                </p>
+                     {suggestion.averageCost > 0 && suggestion.currencyInfo ? (
+                        <CostDisplay usd={suggestion.averageCost} currencyInfo={suggestion.currencyInfo} />
+                    ) : 'N/A'}
+                </div>
             </div>
         </div>
         
-        {suggestion.costBreakdown && (
+        {suggestion.costBreakdown && suggestion.currencyInfo && (
             <div className="pt-3 mt-3 border-t border-slate-700">
                 <h4 className="text-sm font-bold text-slate-300 mb-2">Cost Breakdown (est.)</h4>
                 <ul className="text-sm text-slate-400 space-y-1">
                     <li className="flex justify-between items-center">
                         <span>🏠 Accommodation</span>
-                        <span className="font-mono text-slate-200">${suggestion.costBreakdown.accommodation.toLocaleString()}</span>
+                        <span className="font-mono text-slate-200"><CostDisplay usd={suggestion.costBreakdown.accommodation} currencyInfo={suggestion.currencyInfo} /></span>
                     </li>
                     <li className="flex justify-between items-center">
                         <span>🍜 Food & Dining</span>
-                        <span className="font-mono text-slate-200">${suggestion.costBreakdown.food.toLocaleString()}</span>
+                        <span className="font-mono text-slate-200"><CostDisplay usd={suggestion.costBreakdown.food} currencyInfo={suggestion.currencyInfo} /></span>
                     </li>
                     <li className="flex justify-between items-center">
                         <span>🎟️ Activities & Sights</span>
-                        <span className="font-mono text-slate-200">${suggestion.costBreakdown.activities.toLocaleString()}</span>
+                        <span className="font-mono text-slate-200"><CostDisplay usd={suggestion.costBreakdown.activities} currencyInfo={suggestion.currencyInfo} /></span>
                     </li>
                 </ul>
             </div>
