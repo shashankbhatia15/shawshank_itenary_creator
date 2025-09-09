@@ -1,20 +1,21 @@
-
-
 import React, { useState, useMemo } from 'react';
 import jsPDF from 'jspdf';
 import type { TravelPlan, DestinationSuggestion, DailyPlan, ItineraryLocation, PackingListCategory, CurrencyInfo } from '../types';
 import InteractiveMap from './InteractiveMap';
 import TripTimelineChart from './TripTimelineChart';
+import TripOverviewMap from './LoadPlanModal';
 import PackingListModal from './PackingListModal';
 import { getPackingList } from '../services/geminiService';
 
 interface TravelPlanProps {
   plan: TravelPlan;
   destination: DestinationSuggestion;
+  timeOfYear: string;
   onReset: () => void;
   onBack: () => void;
   onDeleteActivity: (dayIndex: number, activityId: string) => void;
   onReorderActivities: (dayIndex: number, reorderedActivities: ItineraryLocation[]) => void;
+  onUpdateUserNote: (dayIndex: number, note: string) => void;
   onRebuildPlan: (refinementNotes: string) => Promise<void>;
   onOpenSaveModal: () => void;
   isPlanModified: boolean;
@@ -23,6 +24,9 @@ interface TravelPlanProps {
   onUpdatePackingList: (list: PackingListCategory[]) => void;
   onTogglePackingItem: (item: string) => void;
   onAddItemToPackingList: (categoryName: string, item: string) => void;
+  citiesMarkedForRemoval: Set<number>;
+  onToggleCityForRemoval: (cityIndex: number) => void;
+  onConfirmCityRemovals: () => Promise<void>;
 }
 
 // --- Helper Components ---
@@ -48,6 +52,12 @@ const CalendarIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
   </svg>
+);
+
+const SeasonIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+    </svg>
 );
 
 const MoneyIcon = () => (
@@ -114,9 +124,22 @@ const InfoIcon = () => (
     </svg>
 );
 
+const PencilIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z" />
+    </svg>
+);
+
+
 const StopwatchIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+);
+
+const WeatherIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-cyan-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
     </svg>
 );
 
@@ -304,12 +327,13 @@ interface DailyPlanCardProps {
     setDragOverActivityId: (id: string | null) => void;
     onDeleteActivity: (dayIndex: number, activityId: string) => void;
     onReorderActivities: (dayIndex: number, reorderedActivities: ItineraryLocation[]) => void;
+    onUpdateUserNote: (dayIndex: number, note: string) => void;
     highlightedActivityId: string | null;
     onActivityHighlight: (id: string) => void;
     onShowMap: () => void;
 }
 
-const DailyPlanCard: React.FC<DailyPlanCardProps> = ({ dailyPlan, dayIndex, currencyInfo, draggedActivityId, setDraggedActivityId, dragOverActivityId, setDragOverActivityId, onDeleteActivity, onReorderActivities, highlightedActivityId, onActivityHighlight, onShowMap }) => {
+const DailyPlanCard: React.FC<DailyPlanCardProps> = ({ dailyPlan, dayIndex, currencyInfo, draggedActivityId, setDraggedActivityId, dragOverActivityId, setDragOverActivityId, onDeleteActivity, onReorderActivities, onUpdateUserNote, highlightedActivityId, onActivityHighlight, onShowMap }) => {
 
     const handleDragStart = (e: React.DragEvent, activityId: string) => {
         setDraggedActivityId(activityId);
@@ -366,12 +390,20 @@ const DailyPlanCard: React.FC<DailyPlanCardProps> = ({ dailyPlan, dayIndex, curr
                     </div>
                 </div>
             )}
-            <div className="flex justify-between items-center mb-4">
-                <h3 className="text-2xl font-semibold text-white">{dailyPlan.title}</h3>
+            <div className="flex justify-between items-start mb-4">
+                <div className="flex-grow mr-4">
+                    <h3 className="text-2xl font-semibold text-white">{dailyPlan.title}</h3>
+                    {dailyPlan.weatherForecast && (
+                        <div className="flex items-center text-slate-400 mt-1 text-sm">
+                            <WeatherIcon />
+                            <span>{dailyPlan.weatherForecast}</span>
+                        </div>
+                    )}
+                </div>
                 {dailyPlan.activities.length > 0 && (
                      <button
                         onClick={onShowMap}
-                        className="flex items-center gap-2 bg-slate-700/80 hover:bg-cyan-600 text-white text-sm font-semibold py-2 px-3 rounded-lg transition-all"
+                        className="flex-shrink-0 flex items-center gap-2 bg-slate-700/80 hover:bg-cyan-600 text-white text-sm font-semibold py-2 px-3 rounded-lg transition-all"
                         aria-label={`Show activities for Day ${dailyPlan.day} on map`}
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -458,13 +490,26 @@ const DailyPlanCard: React.FC<DailyPlanCardProps> = ({ dailyPlan, dayIndex, curr
                     </ul>
                 </div>
             )}
+             <div className="mt-6">
+                <div className="flex items-center mb-2">
+                    <PencilIcon />
+                    <h4 className="font-bold text-cyan-300">My Personal Notes</h4>
+                </div>
+                <textarea
+                    value={dailyPlan.userNotes || ''}
+                    onChange={(e) => onUpdateUserNote(dayIndex, e.target.value)}
+                    rows={3}
+                    className="w-full bg-slate-700/80 border border-slate-600 rounded-lg py-2 px-3 text-white placeholder-slate-400 focus:ring-2 focus:ring-cyan-500 focus:outline-none transition"
+                    placeholder="Add any personal reminders or notes for this day..."
+                />
+            </div>
         </div>
     );
 };
 
 // --- Main Travel Plan Component ---
 
-const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onReset, onBack, onDeleteActivity, onReorderActivities, onRebuildPlan, onOpenSaveModal, isPlanModified, isLoading, onError, onUpdatePackingList, onTogglePackingItem, onAddItemToPackingList }) => {
+const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, timeOfYear, onReset, onBack, onDeleteActivity, onReorderActivities, onUpdateUserNote, onRebuildPlan, onOpenSaveModal, isPlanModified, isLoading, onError, onUpdatePackingList, onTogglePackingItem, onAddItemToPackingList, citiesMarkedForRemoval, onToggleCityForRemoval, onConfirmCityRemovals }) => {
     const totalEstimatedCostUsd = destination.averageCost > 0
         ? Math.round((destination.averageCost / 7) * plan.itinerary.length)
         : 0;
@@ -552,7 +597,7 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onR
             // Error is handled in App.tsx, so we just log it here and don't clear the notes
         }
     };
-    
+
     const handlePackingListButtonClick = async () => {
         if (plan.packingList && plan.packingList.length > 0) {
             setIsPackingListModalOpen(true);
@@ -758,6 +803,15 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onR
                 pdf.setTextColor(HEADER_COLOR);
                 pdf.text(`Day ${day.day}: ${day.title}`, margin, yPos);
                 yPos += 25;
+
+                if (day.weatherForecast) {
+                    checkAndAddPage(15);
+                    pdf.setFontSize(10);
+                    pdf.setFont('helvetica', 'italic');
+                    pdf.setTextColor(SECONDARY_TEXT_COLOR);
+                    pdf.text(day.weatherForecast, margin, yPos);
+                    yPos += 15;
+                }
                 
                 pdf.setDrawColor(BORDER_COLOR);
                 pdf.line(margin, yPos, pdfWidth - margin, yPos);
@@ -898,7 +952,7 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onR
                     yPos += 15;
                 });
     
-                if (day.keepInMind) {
+                if (day.keepInMind && day.keepInMind.length > 0) {
                     checkAndAddPage(30);
                     pdf.setFontSize(14);
                     pdf.setFont('helvetica', 'bold');
@@ -916,6 +970,23 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onR
                         pdf.text(splitText, margin + 20, yPos);
                         yPos += splitText.length * 12;
                     });
+                     yPos += 10;
+                }
+                
+                if (day.userNotes) {
+                    checkAndAddPage(30);
+                    pdf.setFontSize(14);
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.setTextColor(PRIMARY_TEXT_COLOR);
+                    pdf.text('My Notes', margin, yPos);
+                    yPos += 20;
+
+                    pdf.setFontSize(10);
+                    pdf.setFont('helvetica', 'normal');
+                    const noteLines = pdf.splitTextToSize(day.userNotes, contentWidth);
+                    checkAndAddPage(noteLines.length * 12);
+                    pdf.text(noteLines, margin + 10, yPos);
+                    yPos += noteLines.length * 12 + 10;
                 }
             });
     
@@ -975,6 +1046,12 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onR
                                 <CalendarIcon />
                                 <span className="text-lg">{plan.itinerary.length} Day Adventure</span>
                             </div>
+                            {timeOfYear && (
+                                <div className="flex items-center gap-2">
+                                    <SeasonIcon />
+                                    <span className="text-lg">{timeOfYear}</span>
+                                </div>
+                            )}
                             {totalEstimatedCostUsd > 0 && (
                                 <div className="flex items-center gap-2">
                                     <MoneyIcon />
@@ -992,7 +1069,19 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onR
                     </div>
 
                     <div id="pdf-summary-content">
-                        <TripTimelineChart itinerary={plan.itinerary} />
+                        <TripTimelineChart
+                            itinerary={plan.itinerary}
+                            citiesMarkedForRemoval={citiesMarkedForRemoval}
+                            onToggleCity={onToggleCityForRemoval}
+                            onConfirmRemovals={onConfirmCityRemovals}
+                            isLoading={isLoading}
+                        />
+
+                        <TripOverviewMap
+                            itinerary={plan.itinerary}
+                            cityAccommodationCosts={plan.cityAccommodationCosts || []}
+                            currencyInfo={destination.currencyInfo}
+                        />
 
                         {plan.cityAccommodationCosts && plan.cityAccommodationCosts.length > 0 && (
                             <div className="mb-10 p-6 bg-slate-800 rounded-xl border border-slate-700">
@@ -1115,6 +1204,7 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onR
                                     setDragOverActivityId={setDragOverActivityId}
                                     onDeleteActivity={onDeleteActivity}
                                     onReorderActivities={onReorderActivities}
+                                    onUpdateUserNote={onUpdateUserNote}
                                     highlightedActivityId={highlightedActivityId}
                                     onActivityHighlight={handleHighlightActivity}
                                     onShowMap={() => handleShowMap(index)}
@@ -1168,7 +1258,10 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, onR
                         disabled={isLoading || isDownloading || isPackingListLoading}
                         className="w-full sm:w-auto bg-teal-600 hover:bg-teal-500 text-white font-bold py-3 px-6 rounded-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
-                        Export Plan to File
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                           <path d="M17 3H5a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H7a1 1 0 100 2h3.586l3 3H5V5h12v2.414zM11 13a1 1 0 11-2 0 1 1 0 012 0z" />
+                        </svg>
+                        Save Plan
                     </button>
                     <button
                         onClick={handlePackingListButtonClick}

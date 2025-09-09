@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { AppStep, DestinationSuggestion, TravelPlan, ItineraryStyle, DailyPlan, ItineraryLocation, SavedPlan, PackingListCategory } from './types';
-import { getTravelSuggestions, getTravelPlan, getDirectCountryInfo, rebuildTravelPlan, getOffBeatSuggestions, getComprehensiveTravelPlan } from './services/geminiService';
+import { getTravelSuggestions, getTravelPlan, getDirectCountryInfo, rebuildTravelPlan, getOffBeatSuggestions, getComprehensiveTravelPlan, removeCitiesFromPlan } from './services/geminiService';
 import TripInputForm from './components/TripInputForm';
 import DestinationSuggestions from './components/DestinationSuggestions';
 import TravelPlanComponent from './components/TravelPlan';
@@ -18,15 +18,19 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isPlanModified, setIsPlanModified] = useState(false);
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [deletedActivityIds, setDeletedActivityIds] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [citiesMarkedForRemoval, setCitiesMarkedForRemoval] = useState<Set<number>>(new Set());
 
   // State to hold original plan inputs for rebuild
   const [itineraryStyle, setItineraryStyle] = useState<ItineraryStyle>('Mixed');
   const [additionalNotes, setAdditionalNotes] = useState('');
+  const [timeOfYear, setTimeOfYear] = useState('');
 
   const handleGetSuggestions = async (budget: string, timeOfYear: string, continent: string, country: string) => {
     setError(null);
     setIsLoading(true);
+    setTimeOfYear(timeOfYear);
     const trimmedCountry = country.trim();
 
     try {
@@ -105,6 +109,7 @@ const App: React.FC = () => {
       setPlan(planWithIds);
       setStep('plan');
       setIsPlanModified(false);
+      setCitiesMarkedForRemoval(new Set());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred.');
       setStep('duration'); 
@@ -115,6 +120,14 @@ const App: React.FC = () => {
 
   const handleDeleteActivity = (dayIndex: number, activityId: string) => {
     if (!plan) return;
+
+    const activityToDelete = plan.itinerary[dayIndex].activities.find(a => a.id === activityId);
+    if (activityToDelete) {
+        // Create a unique, non-random identifier for tracking deleted activities
+        const uniqueIdentifier = `${activityToDelete.name.toLowerCase().trim()}|${activityToDelete.city.toLowerCase().trim()}`;
+        setDeletedActivityIds(prev => new Set(prev).add(uniqueIdentifier));
+    }
+    
     const newPlan = { ...plan };
     const newActivities = newPlan.itinerary[dayIndex].activities.filter(a => a.id !== activityId);
     newPlan.itinerary[dayIndex].activities = newActivities;
@@ -126,6 +139,16 @@ const App: React.FC = () => {
     if (!plan) return;
     const newPlan = { ...plan };
     newPlan.itinerary[dayIndex].activities = reorderedActivities;
+    setPlan(newPlan);
+    setIsPlanModified(true);
+  };
+
+  const handleUpdateUserNote = (dayIndex: number, note: string) => {
+    if (!plan) return;
+    const newPlan = { ...plan };
+    const newItinerary = [...newPlan.itinerary];
+    newItinerary[dayIndex] = { ...newItinerary[dayIndex], userNotes: note };
+    newPlan.itinerary = newItinerary;
     setPlan(newPlan);
     setIsPlanModified(true);
   };
@@ -145,7 +168,8 @@ const App: React.FC = () => {
               plan.itinerary.length,
               itineraryStyle,
               plan.itinerary,
-              combinedNotes
+              combinedNotes,
+              Array.from(deletedActivityIds)
           );
           
           const planWithIds: TravelPlan = {
@@ -167,6 +191,60 @@ const App: React.FC = () => {
       } finally {
           setIsLoading(false);
       }
+  };
+
+  const handleToggleCityForRemoval = (cityIndex: number) => {
+    setCitiesMarkedForRemoval(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(cityIndex)) {
+            newSet.delete(cityIndex);
+        } else {
+            newSet.add(cityIndex);
+        }
+        return newSet;
+    });
+  };
+
+  const handleConfirmCityRemovals = async () => {
+    if (!plan || !selectedDestination || citiesMarkedForRemoval.size === 0) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const citiesVisited = plan.itinerary
+        .flatMap(day => day.activities.map(activity => activity.city))
+        .reduce((uniqueCities: string[], city) => {
+            if (city && (uniqueCities.length === 0 || uniqueCities[uniqueCities.length - 1] !== city)) {
+                uniqueCities.push(city);
+            }
+            return uniqueCities;
+        }, []);
+
+      const cityInstancesToRemove = Array.from(citiesMarkedForRemoval).map(index => ({
+        city: citiesVisited[index],
+        index: index
+      }));
+      
+      const result = await removeCitiesFromPlan(selectedDestination.name, plan, cityInstancesToRemove);
+      
+      const planWithIds: TravelPlan = {
+        ...result,
+        itinerary: result.itinerary.map(day => ({
+          ...day,
+          activities: day.activities.map(activity => ({
+            ...activity,
+            id: crypto.randomUUID(),
+          })),
+        })),
+      };
+      
+      setPlan(planWithIds);
+      setIsPlanModified(false); // The new plan is the baseline
+      setCitiesMarkedForRemoval(new Set()); // Clear the set after successful rebuild
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An unknown error occurred while removing the city.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleUpdatePackingList = (list: PackingListCategory[]) => {
@@ -232,6 +310,7 @@ const App: React.FC = () => {
         plan,
         destination: selectedDestination,
         savedAt: new Date().toISOString(),
+        timeOfYear: timeOfYear,
     };
 
     const blob = new Blob([JSON.stringify(planToSave, null, 2)], { type: 'application/json' });
@@ -277,8 +356,11 @@ const App: React.FC = () => {
 
                 setPlan(planWithIds);
                 setSelectedDestination(loadedData.destination);
+                setTimeOfYear(loadedData.timeOfYear || '');
                 setStep('plan');
                 setError(null);
+                setDeletedActivityIds(new Set()); // Reset deleted activities for the new plan
+                setCitiesMarkedForRemoval(new Set());
             } else {
                 throw new Error("Invalid itinerary file format.");
             }
@@ -303,6 +385,9 @@ const App: React.FC = () => {
     setPlan(null);
     setError(null);
     setIsPlanModified(false);
+    setDeletedActivityIds(new Set());
+    setCitiesMarkedForRemoval(new Set());
+    setTimeOfYear('');
   };
 
   const handleBack = () => {
@@ -324,6 +409,7 @@ const App: React.FC = () => {
       case 'plan':
         setStep('duration');
         setPlan(null);
+        setCitiesMarkedForRemoval(new Set());
         break;
       default:
         break;
@@ -356,10 +442,12 @@ const App: React.FC = () => {
           return <TravelPlanComponent 
             plan={plan} 
             destination={selectedDestination} 
+            timeOfYear={timeOfYear}
             onReset={handleReset} 
             onBack={handleBack}
             onDeleteActivity={handleDeleteActivity}
             onReorderActivities={handleReorderActivities}
+            onUpdateUserNote={handleUpdateUserNote}
             onRebuildPlan={handleRebuildPlan}
             onOpenSaveModal={() => setIsSaveModalOpen(true)}
             isPlanModified={isPlanModified}
@@ -368,6 +456,9 @@ const App: React.FC = () => {
             onUpdatePackingList={handleUpdatePackingList}
             onTogglePackingItem={handleTogglePackingItem}
             onAddItemToPackingList={handleAddItemToPackingList}
+            citiesMarkedForRemoval={citiesMarkedForRemoval}
+            onToggleCityForRemoval={handleToggleCityForRemoval}
+            onConfirmCityRemovals={handleConfirmCityRemovals}
             />;
         }
         handleReset();

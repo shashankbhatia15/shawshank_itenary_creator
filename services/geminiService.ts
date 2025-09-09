@@ -231,6 +231,7 @@ const dailyPlanSchema = {
     activities: { type: Type.ARRAY, items: itineraryLocationSchema },
     keepInMind: { type: Type.ARRAY, items: keepInMindItemSchema },
     travelInfo: travelInfoSchema,
+    weatherForecast: { type: Type.STRING, description: "A brief, general weather forecast for the city on this day, considering the time of year. e.g., 'Sunny with highs around 25°C.'" },
   },
   required: ['day', 'title', 'activities', 'keepInMind'],
 };
@@ -322,7 +323,7 @@ export async function getTravelSuggestions(budget: string, timeOfYear: string, c
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: `You are an expert travel agent. Suggest 5 diverse countries for a traveler from India with the following preferences:
+      contents: `You are an expert travel agent. Suggest 5-7 diverse countries for a traveler from India with the following preferences:
 - Budget: ${budget}
 - Time of Year: ${timeOfYear}
 - Continent: ${continent}
@@ -358,7 +359,7 @@ export async function getOffBeatSuggestions(): Promise<DestinationSuggestion[]> 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: `You are a seasoned traveler who loves finding hidden gems. Suggest 5 unique, off-the-beaten-path countries that are great for adventurous travelers from India. Avoid overly common tourist destinations.
+      contents: `You are a seasoned traveler who loves finding hidden gems. Suggest 5-7 unique, off-the-beaten-path countries that are great for adventurous travelers from India. Avoid overly common tourist destinations.
 
 For each country, provide:
 1. The country name.
@@ -394,7 +395,7 @@ Traveler preferences:
 - Notes: ${notes || 'None'}
 
 The plan should include:
-1.  A day-by-day itinerary with 2-4 activities per day. For each activity:
+1.  A day-by-day itinerary. For each day, provide a brief, general 'weatherForecast' for the city based on the time of year. For each activity within the day:
     - Name, city, short description, and whether it's 'Touristy' or 'Off-beat'.
     - Lat/Lng coordinates.
     - Estimated duration (e.g., "2-3 hours").
@@ -440,7 +441,7 @@ Traveler preferences:
 
 The plan must include:
 1.  An optimal duration decided by you.
-2.  A day-by-day itinerary. For each activity:
+2.  A day-by-day itinerary. For each day, provide a brief, general 'weatherForecast' for the city based on the time of year. For each activity within the day:
     - Name, city, short description, and whether it's 'Touristy' or 'Off-beat'.
     - Lat/Lng coordinates.
     - Estimated duration.
@@ -472,8 +473,20 @@ Return a single JSON object matching the provided schema.`;
   }
 }
 
-export async function rebuildTravelPlan(destination: string, duration: number, style: ItineraryStyle, existingPlan: DailyPlan[], refinementNotes: string): Promise<TravelPlan> {
+export async function rebuildTravelPlan(destination: string, duration: number, style: ItineraryStyle, existingPlan: DailyPlan[], refinementNotes: string, deletedActivities: string[]): Promise<TravelPlan> {
   // Caching is intentionally disabled for rebuilds to ensure fresh results based on user feedback.
+
+  let deletedActivitiesPrompt = '';
+  if (deletedActivities && deletedActivities.length > 0) {
+    const formattedDeletedList = deletedActivities.map(item => `- ${item.replace('|', ' in ')}`).join('\n');
+    deletedActivitiesPrompt = `
+IMPORTANT EXCLUSION LIST:
+The user has previously deleted the following activities. You MUST NOT include these specific activities or any very similar ones in the new plan under any circumstances:
+${formattedDeletedList}
+
+If you cannot find enough new, unique activities to suggest after respecting this exclusion list, you MUST clearly state this in the 'optimizationSuggestions' field. For example: "I have included all available relevant activities and there are no more unique suggestions for this destination based on your criteria."
+`;
+  }
   
   const prompt = `You are a travel agent refining an existing plan.
 Destination: ${destination}
@@ -486,7 +499,9 @@ ${JSON.stringify(existingPlan, null, 2)}
 Here are the user's refinement notes:
 "${refinementNotes}"
 
-Please modify the plan based on the notes. You can add, remove, or reorder activities, or even change cities if requested. Ensure the new plan is coherent and still fits the duration. Ensure all costs (activities, travel, accommodation) are in USD.
+${deletedActivitiesPrompt}
+
+Please modify the plan based on the notes. You can add, remove, or reorder activities, or even change cities if requested. Ensure the new plan is coherent and still fits the duration. For each day in the updated plan, ensure there is a general 'weatherForecast'. Ensure all costs (activities, travel, accommodation) are in USD.
 
 Return the complete, updated travel plan as a single JSON object matching the provided schema. It must include all parts: itinerary, optimizationSuggestions, officialLinks, and cityAccommodationCosts.`;
 
@@ -505,6 +520,56 @@ Return the complete, updated travel plan as a single JSON object matching the pr
     throw new Error(parseApiError(error, `rebuilding the travel plan for ${destination}`));
   }
 }
+
+export async function removeCitiesFromPlan(destination: string, existingPlan: TravelPlan, cityInstancesToRemove: { city: string; index: number; }[]): Promise<TravelPlan> {
+  const citiesVisited = existingPlan.itinerary
+    .flatMap(day => day.activities.map(activity => activity.city))
+    .reduce((uniqueCities: string[], city) => {
+        if (city && (uniqueCities.length === 0 || uniqueCities[uniqueCities.length - 1] !== city)) {
+            uniqueCities.push(city);
+        }
+        return uniqueCities;
+    }, []);
+    
+  const removalRequests = cityInstancesToRemove.map(c => `- The stay in ${c.city} at position ${c.index + 1} (out of ${citiesVisited.length})`).join('\n');
+
+  const prompt = `You are an expert travel agent modifying an existing itinerary for a trip to ${destination}.
+
+The full sequence of city stays in the current plan is: ${citiesVisited.join(' -> ')}.
+
+The user wants to remove the following specific city stays from their plan, identified by their position in the sequence above:
+${removalRequests}
+
+Here is the current plan:
+${JSON.stringify(existingPlan.itinerary, null, 2)}
+
+Your task is to:
+1.  Identify the block of days and activities that correspond ONLY to the specific city stay instance(s) marked for removal. For example, if the sequence is 'Paris -> London -> Paris' and the user wants to remove the first 'Paris' at position 1, you must ONLY remove the initial days in Paris and keep the final days in Paris untouched.
+2.  Remove ONLY the days and activities for the specified city stay instance(s).
+3.  Re-number the remaining days sequentially, starting from Day 1. The new total duration will be shorter.
+4.  Logically update any "travelInfo" sections. If a travel leg is now between two different cities because of the removal, update the 'fromCity' and 'toCity' fields and suggest new travel options. If a travel leg becomes irrelevant, remove it.
+5.  Update the "cityAccommodationCosts" array to remove entries for the removed cities. If a city is visited multiple times and only one visit is removed, you should try to adjust the cost instead of removing the entry entirely, but removing it is also acceptable if it's simpler.
+6.  Write a new, relevant "optimizationSuggestions" paragraph for the revised plan.
+7.  IMPORTANT: The new itinerary must only contain the activities from the original plan that were NOT in the removed city stay. Do not invent or add any new activities. Simply re-structure the remaining activities into a coherent, shorter itinerary.
+
+Return the complete, updated travel plan as a single JSON object matching the provided schema. The final output must be a valid JSON that conforms to the schema.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: travelPlanSchema,
+      },
+    });
+    const data = JSON.parse(response.text.trim());
+    return data;
+  } catch (error) {
+    throw new Error(parseApiError(error, `removing cities from the plan`));
+  }
+}
+
 
 export async function getPackingList(destination: string, duration: number, activities: ItineraryLocation[]): Promise<PackingListCategory[]> {
   const activityNames = activities.map(a => a.name).join(', ');
