@@ -26,7 +26,6 @@ interface TravelPlanProps {
   onAddItemToPackingList: (categoryName: string, item: string) => void;
   citiesMarkedForRemoval: Set<number>;
   onToggleCityForRemoval: (cityIndex: number) => void;
-  onConfirmCityRemovals: () => Promise<void>;
 }
 
 // --- Helper Components ---
@@ -509,7 +508,7 @@ const DailyPlanCard: React.FC<DailyPlanCardProps> = ({ dailyPlan, dayIndex, curr
 
 // --- Main Travel Plan Component ---
 
-const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, timeOfYear, onReset, onBack, onDeleteActivity, onReorderActivities, onUpdateUserNote, onRebuildPlan, onOpenSaveModal, isPlanModified, isLoading, onError, onUpdatePackingList, onTogglePackingItem, onAddItemToPackingList, citiesMarkedForRemoval, onToggleCityForRemoval, onConfirmCityRemovals }) => {
+const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, timeOfYear, onReset, onBack, onDeleteActivity, onReorderActivities, onUpdateUserNote, onRebuildPlan, onOpenSaveModal, isPlanModified, isLoading, onError, onUpdatePackingList, onTogglePackingItem, onAddItemToPackingList, citiesMarkedForRemoval, onToggleCityForRemoval }) => {
     const totalEstimatedCostUsd = destination.averageCost > 0
         ? Math.round((destination.averageCost / 7) * plan.itinerary.length)
         : 0;
@@ -525,7 +524,7 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, tim
     const [isPackingListLoading, setIsPackingListLoading] = useState(false);
 
 
-    const showRebuildButton = isPlanModified || refinementNotes.trim() !== '';
+    const showRebuildButton = isPlanModified || refinementNotes.trim() !== '' || citiesMarkedForRemoval.size > 0;
 
     const { currencyInfo } = destination;
     const localToInrRate = currencyInfo.usdToInrRate / currencyInfo.usdToLocalRate;
@@ -1073,7 +1072,6 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, tim
                             itinerary={plan.itinerary}
                             citiesMarkedForRemoval={citiesMarkedForRemoval}
                             onToggleCity={onToggleCityForRemoval}
-                            onConfirmRemovals={onConfirmCityRemovals}
                             isLoading={isLoading}
                         />
 

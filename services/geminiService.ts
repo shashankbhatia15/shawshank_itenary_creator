@@ -153,7 +153,7 @@ const destinationSuggestionSchema = {
     name: { type: Type.STRING, description: "The name of the country suggested." },
     country: { type: Type.STRING, description: "The formal name of the country." },
     description: { type: Type.STRING, description: "A short, compelling description of the country as a travel destination (2-3 sentences)." },
-    visaInfo: { type: Type.STRING, description: "A summary of visa requirements for Indian citizens, mentioning e-visa or visa on arrival availability." },
+    visaInfo: { type: Type.STRING, description: "A summary of visa requirements for Indian citizens, mentioning e-visa/visa on arrival availability." },
     averageCost: { type: Type.NUMBER, description: "An estimated total average cost in USD for a solo traveler for a 7-day trip." },
     costBreakdown: costBreakdownSchema,
     currencyInfo: currencyInfoSchema,
@@ -503,6 +503,8 @@ ${deletedActivitiesPrompt}
 
 Please modify the plan based on the notes. You can add, remove, or reorder activities, or even change cities if requested. Ensure the new plan is coherent and still fits the duration. For each day in the updated plan, ensure there is a general 'weatherForecast'. Ensure all costs (activities, travel, accommodation) are in USD.
 
+CRITICAL: You must preserve the 'userNotes' field on each day's plan. If you modify a day, carry its existing 'userNotes' over to the new version unless the user explicitly asks to change the notes.
+
 Return the complete, updated travel plan as a single JSON object matching the provided schema. It must include all parts: itinerary, optimizationSuggestions, officialLinks, and cityAccommodationCosts.`;
 
   try {
@@ -520,56 +522,6 @@ Return the complete, updated travel plan as a single JSON object matching the pr
     throw new Error(parseApiError(error, `rebuilding the travel plan for ${destination}`));
   }
 }
-
-export async function removeCitiesFromPlan(destination: string, existingPlan: TravelPlan, cityInstancesToRemove: { city: string; index: number; }[]): Promise<TravelPlan> {
-  const citiesVisited = existingPlan.itinerary
-    .flatMap(day => day.activities.map(activity => activity.city))
-    .reduce((uniqueCities: string[], city) => {
-        if (city && (uniqueCities.length === 0 || uniqueCities[uniqueCities.length - 1] !== city)) {
-            uniqueCities.push(city);
-        }
-        return uniqueCities;
-    }, []);
-    
-  const removalRequests = cityInstancesToRemove.map(c => `- The stay in ${c.city} at position ${c.index + 1} (out of ${citiesVisited.length})`).join('\n');
-
-  const prompt = `You are an expert travel agent modifying an existing itinerary for a trip to ${destination}.
-
-The full sequence of city stays in the current plan is: ${citiesVisited.join(' -> ')}.
-
-The user wants to remove the following specific city stays from their plan, identified by their position in the sequence above:
-${removalRequests}
-
-Here is the current plan:
-${JSON.stringify(existingPlan.itinerary, null, 2)}
-
-Your task is to:
-1.  Identify the block of days and activities that correspond ONLY to the specific city stay instance(s) marked for removal. For example, if the sequence is 'Paris -> London -> Paris' and the user wants to remove the first 'Paris' at position 1, you must ONLY remove the initial days in Paris and keep the final days in Paris untouched.
-2.  Remove ONLY the days and activities for the specified city stay instance(s).
-3.  Re-number the remaining days sequentially, starting from Day 1. The new total duration will be shorter.
-4.  Logically update any "travelInfo" sections. If a travel leg is now between two different cities because of the removal, update the 'fromCity' and 'toCity' fields and suggest new travel options. If a travel leg becomes irrelevant, remove it.
-5.  Update the "cityAccommodationCosts" array to remove entries for the removed cities. If a city is visited multiple times and only one visit is removed, you should try to adjust the cost instead of removing the entry entirely, but removing it is also acceptable if it's simpler.
-6.  Write a new, relevant "optimizationSuggestions" paragraph for the revised plan.
-7.  IMPORTANT: The new itinerary must only contain the activities from the original plan that were NOT in the removed city stay. Do not invent or add any new activities. Simply re-structure the remaining activities into a coherent, shorter itinerary.
-
-Return the complete, updated travel plan as a single JSON object matching the provided schema. The final output must be a valid JSON that conforms to the schema.`;
-
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: travelPlanSchema,
-      },
-    });
-    const data = JSON.parse(response.text.trim());
-    return data;
-  } catch (error) {
-    throw new Error(parseApiError(error, `removing cities from the plan`));
-  }
-}
-
 
 export async function getPackingList(destination: string, duration: number, activities: ItineraryLocation[]): Promise<PackingListCategory[]> {
   const activityNames = activities.map(a => a.name).join(', ');

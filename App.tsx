@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { AppStep, DestinationSuggestion, TravelPlan, ItineraryStyle, DailyPlan, ItineraryLocation, SavedPlan, PackingListCategory } from './types';
-import { getTravelSuggestions, getTravelPlan, getDirectCountryInfo, rebuildTravelPlan, getOffBeatSuggestions, getComprehensiveTravelPlan, removeCitiesFromPlan } from './services/geminiService';
+import { getTravelSuggestions, getTravelPlan, getDirectCountryInfo, rebuildTravelPlan, getOffBeatSuggestions, getComprehensiveTravelPlan } from './services/geminiService';
 import TripInputForm from './components/TripInputForm';
 import DestinationSuggestions from './components/DestinationSuggestions';
 import TravelPlanComponent from './components/TravelPlan';
@@ -158,9 +158,29 @@ const App: React.FC = () => {
       setIsLoading(true);
       setError(null);
       
-      const combinedNotes = [additionalNotes, refinementNotes]
-          .filter(Boolean) // Remove empty strings to avoid extra whitespace/labels
-          .join('\n\nAdditional Refinements:\n');
+      let finalNotes = refinementNotes || 'No specific notes provided.';
+
+      if (citiesMarkedForRemoval.size > 0) {
+        const citiesVisited = plan.itinerary
+            .flatMap(day => day.activities.map(activity => activity.city))
+            .reduce((uniqueCities: string[], city) => {
+                if (city && (uniqueCities.length === 0 || uniqueCities[uniqueCities.length - 1] !== city)) {
+                    uniqueCities.push(city);
+                }
+                return uniqueCities;
+            }, [] as string[]);
+        
+        const removalInstructions = Array.from(citiesMarkedForRemoval).map(index => 
+            `- The visit to ${citiesVisited[index]} (which is stop number ${index + 1} in the sequence: ${citiesVisited.join(' -> ')})`
+        ).join('\n');
+        
+        const removalPrompt = `CRITICAL TASK: First, you MUST remove the following city stops and all their associated days/activities from the itinerary. This will make the trip shorter.
+${removalInstructions}
+
+Once the cities are removed, apply the user's other refinement notes (if any) to the REMAINING plan.
+`;
+        finalNotes = `${removalPrompt}\n\nOther refinement notes: ${refinementNotes}`;
+      }
 
       try {
           const result = await rebuildTravelPlan(
@@ -168,7 +188,7 @@ const App: React.FC = () => {
               plan.itinerary.length,
               itineraryStyle,
               plan.itinerary,
-              combinedNotes,
+              finalNotes,
               Array.from(deletedActivityIds)
           );
           
@@ -185,6 +205,7 @@ const App: React.FC = () => {
 
           setPlan(planWithIds);
           setIsPlanModified(false);
+          setCitiesMarkedForRemoval(new Set());
       } catch (err) {
           setError(err instanceof Error ? err.message : 'An unknown error occurred.');
           throw err; // Re-throw to allow the component to handle UI state
@@ -203,48 +224,6 @@ const App: React.FC = () => {
         }
         return newSet;
     });
-  };
-
-  const handleConfirmCityRemovals = async () => {
-    if (!plan || !selectedDestination || citiesMarkedForRemoval.size === 0) return;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const citiesVisited = plan.itinerary
-        .flatMap(day => day.activities.map(activity => activity.city))
-        .reduce((uniqueCities: string[], city) => {
-            if (city && (uniqueCities.length === 0 || uniqueCities[uniqueCities.length - 1] !== city)) {
-                uniqueCities.push(city);
-            }
-            return uniqueCities;
-        }, []);
-
-      const cityInstancesToRemove = Array.from(citiesMarkedForRemoval).map(index => ({
-        city: citiesVisited[index],
-        index: index
-      }));
-      
-      const result = await removeCitiesFromPlan(selectedDestination.name, plan, cityInstancesToRemove);
-      
-      const planWithIds: TravelPlan = {
-        ...result,
-        itinerary: result.itinerary.map(day => ({
-          ...day,
-          activities: day.activities.map(activity => ({
-            ...activity,
-            id: crypto.randomUUID(),
-          })),
-        })),
-      };
-      
-      setPlan(planWithIds);
-      setIsPlanModified(false); // The new plan is the baseline
-      setCitiesMarkedForRemoval(new Set()); // Clear the set after successful rebuild
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unknown error occurred while removing the city.');
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const handleUpdatePackingList = (list: PackingListCategory[]) => {
@@ -458,7 +437,6 @@ const App: React.FC = () => {
             onAddItemToPackingList={handleAddItemToPackingList}
             citiesMarkedForRemoval={citiesMarkedForRemoval}
             onToggleCityForRemoval={handleToggleCityForRemoval}
-            onConfirmCityRemovals={handleConfirmCityRemovals}
             />;
         }
         handleReset();

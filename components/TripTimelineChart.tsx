@@ -23,11 +23,10 @@ interface TripTimelineChartProps {
     itinerary: DailyPlan[];
     citiesMarkedForRemoval: Set<number>;
     onToggleCity: (index: number) => void;
-    onConfirmRemovals: () => void;
     isLoading: boolean;
 }
 
-const TripTimelineChart: React.FC<TripTimelineChartProps> = ({ itinerary, citiesMarkedForRemoval, onToggleCity, onConfirmRemovals, isLoading }) => {
+const TripTimelineChart: React.FC<TripTimelineChartProps> = ({ itinerary, citiesMarkedForRemoval, onToggleCity, isLoading }) => {
     const citiesVisited = itinerary
         .flatMap(day => day.activities.map(activity => activity.city))
         .reduce((uniqueCities: string[], city) => {
@@ -75,15 +74,9 @@ const TripTimelineChart: React.FC<TripTimelineChartProps> = ({ itinerary, cities
             </div>
 
             {citiesMarkedForRemoval.size > 0 && (
-                <div className="mt-6 text-center border-t border-slate-700 pt-4">
-                    <button
-                        onClick={onConfirmRemovals}
-                        disabled={isLoading}
-                        className="bg-red-600 hover:bg-red-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-bold py-2 px-4 rounded-lg transition-all"
-                    >
-                        {isLoading ? 'Rebuilding...' : `Confirm Removal of ${citiesMarkedForRemoval.size} stop${citiesMarkedForRemoval.size > 1 ? 's' : ''}`}
-                    </button>
-                </div>
+                 <p className="text-center text-sm text-amber-300 mt-4 pt-4 border-t border-slate-700">
+                    City removals will be applied when you click "Rebuild Itinerary".
+                </p>
             )}
         </div>
     );
