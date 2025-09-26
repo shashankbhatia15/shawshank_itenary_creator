@@ -66,7 +66,7 @@ export interface DailyPlan {
   title: string;
   activities: ItineraryLocation[];
   keepInMind: KeepInMindItem[];
-  travelInfo?: TravelInfo;
+  travelInfo?: TravelInfo[];
   userNotes?: string;
   weatherForecast?: string;
 }
@@ -98,6 +98,8 @@ export interface SavedPlan {
   destination: DestinationSuggestion;
   savedAt: string; // ISO string date
   timeOfYear: string;
+  itineraryStyle: ItineraryStyle;
+  additionalNotes: string;
 }
 
 export type AppStep = 'input' | 'suggestions' | 'duration' | 'plan';

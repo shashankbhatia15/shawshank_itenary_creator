@@ -24,9 +24,10 @@ interface TripTimelineChartProps {
     citiesMarkedForRemoval: Set<number>;
     onToggleCity: (index: number) => void;
     isLoading: boolean;
+    onCityClick: (city: string) => void;
 }
 
-const TripTimelineChart: React.FC<TripTimelineChartProps> = ({ itinerary, citiesMarkedForRemoval, onToggleCity, isLoading }) => {
+const TripTimelineChart: React.FC<TripTimelineChartProps> = ({ itinerary, citiesMarkedForRemoval, onToggleCity, isLoading, onCityClick }) => {
     const citiesVisited = itinerary
         .flatMap(day => day.activities.map(activity => activity.city))
         .reduce((uniqueCities: string[], city) => {
@@ -49,9 +50,14 @@ const TripTimelineChart: React.FC<TripTimelineChartProps> = ({ itinerary, cities
                     return (
                         <React.Fragment key={`${city}-${index}`}>
                             <div className="group flex items-center gap-2 bg-slate-700/50 py-2 pl-4 pr-2 rounded-lg relative transition-all">
-                                <span className={`font-semibold transition-colors ${isMarkedForRemoval ? 'text-slate-500 line-through' : 'text-slate-200'}`}>
+                                <button
+                                    onClick={() => onCityClick(city)}
+                                    disabled={isMarkedForRemoval || isLoading}
+                                    className={`font-semibold transition-colors disabled:cursor-not-allowed ${isMarkedForRemoval ? 'text-slate-500 line-through' : 'text-slate-200 hover:text-cyan-300'}`}
+                                    aria-label={`Scroll to the first day in ${city}`}
+                                >
                                     {city}
-                                </span>
+                                </button>
                                 {citiesVisited.length > 1 && (
                                     <button
                                         onClick={() => onToggleCity(index)}

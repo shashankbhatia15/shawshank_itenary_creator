@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import type { DestinationSuggestion, ItineraryStyle } from '../types';
 
@@ -7,13 +6,18 @@ interface DurationInputProps {
     onGetPlan: (duration: number, style: ItineraryStyle, additionalNotes: string) => void;
     isLoading: boolean;
     onBack: () => void;
+    initialStyle: ItineraryStyle;
+    initialNotes: string;
+    onReturnToPlan?: () => void;
 }
 
-const DurationInput: React.FC<DurationInputProps> = ({ destination, onGetPlan, isLoading, onBack }) => {
+const DurationInput: React.FC<DurationInputProps> = ({ destination, onGetPlan, isLoading, onBack, initialStyle, initialNotes, onReturnToPlan }) => {
     const [duration, setDuration] = useState(7);
-    const [style, setStyle] = useState<ItineraryStyle>('Mixed');
-    const [additionalNotes, setAdditionalNotes] = useState('');
+    const [style, setStyle] = useState<ItineraryStyle>(initialStyle);
+    const [additionalNotes, setAdditionalNotes] = useState(initialNotes);
     const [letAiDecide, setLetAiDecide] = useState(false);
+
+    const isUpdating = !!onReturnToPlan;
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -108,13 +112,28 @@ const DurationInput: React.FC<DurationInputProps> = ({ destination, onGetPlan, i
                         disabled={isLoading}
                     />
                 </div>
-                <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105"
-                >
-                    {isLoading ? 'Building Itinerary...' : 'Generate Itinerary'}
-                </button>
+                <div className="mt-6 flex flex-col gap-4">
+                    <button
+                        type="submit"
+                        disabled={isLoading}
+                        className="w-full bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105"
+                    >
+                        {isLoading ? (isUpdating ? 'Updating Itinerary...' : 'Building Itinerary...') : (isUpdating ? 'Update Itinerary' : 'Generate Itinerary')}
+                    </button>
+                    {isUpdating && (
+                        <button
+                            type="button"
+                            onClick={onReturnToPlan}
+                            disabled={isLoading}
+                            className="w-full bg-slate-600 hover:bg-slate-500 disabled:bg-slate-500 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 flex items-center justify-center gap-2"
+                        >
+                            Back to Itinerary
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                            </svg>
+                        </button>
+                    )}
+                </div>
             </form>
         </div>
     );

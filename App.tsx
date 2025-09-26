@@ -8,12 +8,14 @@ import LoadingSpinner from './components/LoadingSpinner';
 import ErrorDisplay from './components/ErrorDisplay';
 import DurationInput from './components/DurationInput';
 import SavePlanModal from './components/SavePlanModal';
+import Logo from './components/Logo';
 
 const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>('input');
   const [suggestions, setSuggestions] = useState<DestinationSuggestion[]>([]);
   const [selectedDestination, setSelectedDestination] = useState<DestinationSuggestion | null>(null);
   const [plan, setPlan] = useState<TravelPlan | null>(null);
+  const [originalPlan, setOriginalPlan] = useState<TravelPlan | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPlanModified, setIsPlanModified] = useState(false);
@@ -107,6 +109,7 @@ const App: React.FC = () => {
       };
 
       setPlan(planWithIds);
+      setOriginalPlan(JSON.parse(JSON.stringify(planWithIds)));
       setStep('plan');
       setIsPlanModified(false);
       setCitiesMarkedForRemoval(new Set());
@@ -170,7 +173,8 @@ const App: React.FC = () => {
                 return uniqueCities;
             }, [] as string[]);
         
-        const removalInstructions = Array.from(citiesMarkedForRemoval).map(index => 
+        // FIX: Explicitly typing `index` as `number` to prevent a type inference issue.
+        const removalInstructions = Array.from(citiesMarkedForRemoval).map((index: number) => 
             `- The visit to ${citiesVisited[index]} (which is stop number ${index + 1} in the sequence: ${citiesVisited.join(' -> ')})`
         ).join('\n');
         
@@ -204,6 +208,7 @@ Once the cities are removed, apply the user's other refinement notes (if any) to
           };
 
           setPlan(planWithIds);
+          setOriginalPlan(JSON.parse(JSON.stringify(planWithIds)));
           setIsPlanModified(false);
           setCitiesMarkedForRemoval(new Set());
       } catch (err) {
@@ -212,6 +217,14 @@ Once the cities are removed, apply the user's other refinement notes (if any) to
       } finally {
           setIsLoading(false);
       }
+  };
+
+  const handleDiscardChanges = () => {
+    if (!originalPlan) return;
+    setPlan(JSON.parse(JSON.stringify(originalPlan)));
+    setIsPlanModified(false);
+    setDeletedActivityIds(new Set());
+    setCitiesMarkedForRemoval(new Set());
   };
 
   const handleToggleCityForRemoval = (cityIndex: number) => {
@@ -280,6 +293,30 @@ Once the cities are removed, apply the user's other refinement notes (if any) to
     });
   };
 
+  const handleRemovePackingItem = (itemToRemove: string) => {
+    if (!plan?.packingList) return;
+
+    setPlan(prevPlan => {
+      if (!prevPlan || !prevPlan.packingList) return prevPlan;
+
+      // Filter out the item from the correct category
+      const newPackingList = prevPlan.packingList.map(category => ({
+        ...category,
+        items: category.items.filter(item => item !== itemToRemove),
+      }));
+
+      // Remove the item from the checked items record
+      const newCheckedItems = { ...(prevPlan.checkedPackingItems || {}) };
+      delete newCheckedItems[itemToRemove];
+
+      return {
+        ...prevPlan,
+        packingList: newPackingList,
+        checkedPackingItems: newCheckedItems,
+      };
+    });
+  };
+
   const handleSavePlanToFile = (name: string) => {
     if (!plan || !selectedDestination) return;
 
@@ -290,6 +327,8 @@ Once the cities are removed, apply the user's other refinement notes (if any) to
         destination: selectedDestination,
         savedAt: new Date().toISOString(),
         timeOfYear: timeOfYear,
+        itineraryStyle: itineraryStyle,
+        additionalNotes: additionalNotes,
     };
 
     const blob = new Blob([JSON.stringify(planToSave, null, 2)], { type: 'application/json' });
@@ -324,18 +363,23 @@ Once the cities are removed, apply the user's other refinement notes (if any) to
             if (loadedData.plan && loadedData.destination && loadedData.plan.itinerary) {
                 const planWithIds: TravelPlan = {
                     ...loadedData.plan,
-                    itinerary: loadedData.plan.itinerary.map((day: DailyPlan) => ({
+                    itinerary: loadedData.plan.itinerary.map((day: any) => ({
                         ...day,
                         activities: day.activities.map((activity: ItineraryLocation) => ({
                             ...activity,
                             id: activity.id || crypto.randomUUID(),
                         })),
+                        // Migration for travelInfo to ensure it's always an array
+                        travelInfo: day.travelInfo ? (Array.isArray(day.travelInfo) ? day.travelInfo : [day.travelInfo]) : undefined,
                     })),
                 };
 
                 setPlan(planWithIds);
+                setOriginalPlan(JSON.parse(JSON.stringify(planWithIds)));
                 setSelectedDestination(loadedData.destination);
                 setTimeOfYear(loadedData.timeOfYear || '');
+                setItineraryStyle(loadedData.itineraryStyle || 'Mixed');
+                setAdditionalNotes(loadedData.additionalNotes || '');
                 setStep('plan');
                 setError(null);
                 setDeletedActivityIds(new Set()); // Reset deleted activities for the new plan
@@ -362,11 +406,21 @@ Once the cities are removed, apply the user's other refinement notes (if any) to
     setSuggestions([]);
     setSelectedDestination(null);
     setPlan(null);
+    setOriginalPlan(null);
     setError(null);
     setIsPlanModified(false);
     setDeletedActivityIds(new Set());
     setCitiesMarkedForRemoval(new Set());
     setTimeOfYear('');
+    setItineraryStyle('Mixed');
+    setAdditionalNotes('');
+  };
+
+  const handleReturnToPlan = () => {
+    if (plan) {
+        setError(null);
+        setStep('plan');
+    }
   };
 
   const handleBack = () => {
@@ -384,10 +438,16 @@ Once the cities are removed, apply the user's other refinement notes (if any) to
           setStep('input');
         }
         setSelectedDestination(null);
+        setPlan(null);
+        setOriginalPlan(null);
         break;
       case 'plan':
         setStep('duration');
-        setPlan(null);
+        // When navigating away from the plan, discard any un-rebuilt changes.
+        if (originalPlan) {
+            setPlan(JSON.parse(JSON.stringify(originalPlan)));
+        }
+        setDeletedActivityIds(new Set());
         setCitiesMarkedForRemoval(new Set());
         break;
       default:
@@ -412,7 +472,15 @@ Once the cities are removed, apply the user's other refinement notes (if any) to
         return <DestinationSuggestions suggestions={suggestions} onSelectDestination={handleSelectDestination} isLoading={isLoading} onBack={handleBack} />;
       case 'duration':
         if (selectedDestination) {
-          return <DurationInput destination={selectedDestination} onGetPlan={handleGetPlan} isLoading={isLoading} onBack={handleBack} />;
+          return <DurationInput 
+            destination={selectedDestination} 
+            onGetPlan={handleGetPlan} 
+            isLoading={isLoading} 
+            onBack={handleBack} 
+            initialStyle={itineraryStyle}
+            initialNotes={additionalNotes}
+            onReturnToPlan={plan ? handleReturnToPlan : undefined}
+          />;
         }
         handleReset();
         return null;
@@ -428,6 +496,7 @@ Once the cities are removed, apply the user's other refinement notes (if any) to
             onReorderActivities={handleReorderActivities}
             onUpdateUserNote={handleUpdateUserNote}
             onRebuildPlan={handleRebuildPlan}
+            onDiscardChanges={handleDiscardChanges}
             onOpenSaveModal={() => setIsSaveModalOpen(true)}
             isPlanModified={isPlanModified}
             isLoading={isLoading}
@@ -435,6 +504,7 @@ Once the cities are removed, apply the user's other refinement notes (if any) to
             onUpdatePackingList={handleUpdatePackingList}
             onTogglePackingItem={handleTogglePackingItem}
             onAddItemToPackingList={handleAddItemToPackingList}
+            onRemovePackingItem={handleRemovePackingItem}
             citiesMarkedForRemoval={citiesMarkedForRemoval}
             onToggleCityForRemoval={handleToggleCityForRemoval}
             />;
@@ -470,11 +540,14 @@ Once the cities are removed, apply the user's other refinement notes (if any) to
             }
         />
         <div className="absolute top-0 left-0 w-full h-full bg-slate-900 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(14,165,233,0.3),rgba(255,255,255,0))] -z-10"></div>
-        <header className="w-full max-w-6xl mx-auto text-center mb-12">
-            <h1 className="text-5xl md:text-6xl font-extrabold text-white tracking-tight">
-                Shawshank <span className="text-cyan-400">Travel Planner</span>
-            </h1>
-            <p className="mt-4 text-lg text-slate-300">Your AI-powered guide to the world.</p>
+        <header className="w-full max-w-6xl mx-auto text-center mb-12 flex flex-col items-center gap-4">
+            <Logo />
+            <div>
+              <h1 className="text-5xl md:text-6xl font-extrabold text-white tracking-tight">
+                  Shawshank <span className="text-cyan-400">Travel Planner</span>
+              </h1>
+              <p className="mt-2 text-lg text-slate-300">Your AI-powered guide to the world.</p>
+            </div>
         </header>
         <div className="w-full flex-grow flex items-center justify-center">
             {error && (

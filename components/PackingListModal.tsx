@@ -9,9 +9,10 @@ interface PackingListModalProps {
   checkedItems: Record<string, boolean>;
   onToggleItem: (item: string) => void;
   onAddItem: (categoryName: string, item: string) => void;
+  onRemoveItem: (item: string) => void;
 }
 
-const PackingListModal: React.FC<PackingListModalProps> = ({ isOpen, onClose, list, destinationName, checkedItems, onToggleItem, onAddItem }) => {
+const PackingListModal: React.FC<PackingListModalProps> = ({ isOpen, onClose, list, destinationName, checkedItems, onToggleItem, onAddItem, onRemoveItem }) => {
   const [newItem, setNewItem] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(list[0]?.categoryName || '');
 
@@ -90,20 +91,32 @@ const PackingListModal: React.FC<PackingListModalProps> = ({ isOpen, onClose, li
                 <h3 className="text-xl font-semibold text-white border-b-2 border-slate-700 pb-2 mb-3">
                   {category.categoryName}
                 </h3>
-                <ul className="space-y-2 columns-1 sm:columns-2">
+                <ul className="space-y-1 columns-1 sm:columns-2">
                   {category.items.map(item => (
-                    <li key={item} className="flex items-center break-inside-avoid">
-                      <label className="flex items-center text-slate-300 hover:text-white cursor-pointer w-full">
+                    <li key={item} className="group flex items-center justify-between break-inside-avoid pr-2">
+                      <label className="flex items-center text-slate-300 hover:text-white cursor-pointer py-1">
                         <input
                           type="checkbox"
                           checked={!!checkedItems[item]}
                           onChange={() => handleCheckboxChange(item)}
-                          className="h-4 w-4 rounded border-slate-500 bg-slate-700 text-cyan-600 focus:ring-cyan-600 mr-3"
+                          className="h-4 w-4 flex-shrink-0 rounded border-slate-500 bg-slate-700 text-cyan-600 focus:ring-cyan-600 mr-3"
                         />
                         <span className={checkedItems[item] ? 'line-through text-slate-500' : ''}>
                           {item}
                         </span>
                       </label>
+                       <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRemoveItem(item);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 transition-opacity"
+                        aria-label={`Remove ${item}`}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                      </button>
                     </li>
                   ))}
                 </ul>

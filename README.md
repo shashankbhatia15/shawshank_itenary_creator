@@ -7,24 +7,39 @@ An intelligent, AI-powered travel planner that suggests destinations based on yo
 
 ## Key Features
 
--   **AI-Powered Discovery Engine**: Not sure where to go? Get personalized destination ideas based on your budget, travel dates, and preferred continent. Or, spark your adventurous side with the "Inspire Me: Off-Beat Ideas" feature.
--   **Direct Country Search**: Already have a place in mind? Jump straight into planning for any country directly.
--   **Dynamic Itinerary Generation**:
-    -   **Custom Duration**: Plan a trip for any length from a short getaway to a month-long expedition.
+-   **AI-Powered Discovery Engine**:
+    -   **Personalized Suggestions**: Get destination ideas based on your budget, travel dates, and preferred continent.
+    -   **Direct Country Search**: Already have a place in mind? Jump straight into planning for any country.
+    -   **Off-Beat Inspiration**: Spark your adventurous side with the "Inspire Me: Off-Beat Ideas" feature for unique, less-traveled destinations.
+
+-   **Dynamic & Flexible Itinerary Generation**:
+    -   **Custom Duration**: Plan a trip for any length, from a short getaway to a month-long expedition.
     -   **AI-Suggested Duration**: Let the AI create a comprehensive, full-country tour with an optimal duration.
     -   **Travel Styles**: Tailor your itinerary to be `Touristy`, `Off-beat`, or a `Mixed` blend of both.
--   **Interactive Plan Management**:
-    -   **Drag & Drop**: Easily reorder activities within a day to match your flow.
-    -   **Delete Activities**: Remove any suggestion that doesn't fit your interests.
-    -   **Save & Load**: Export your progress to a JSON file and load it back anytime to continue planning.
--   **AI-Assisted Refinement**: Made changes to your plan? Add new requests and click "Rebuild Itinerary" to have the AI re-optimize the entire schedule, travel routes, and daily tips based on your modifications.
+
+-   **Interactive & Evolving Plan Management**:
+    -   **Edit with Ease**: Drag and drop to reorder activities, delete unwanted suggestions, and add personal notes to each day's plan.
+    -   **AI Refinement Engine**: Request changes in natural language (e.g., "add more hiking," "make day 2 more relaxed"). The AI rebuilds the entire plan, remembering previously deleted activities to avoid repeating suggestions.
+    -   **Route Modification**: Visually mark entire cities for removal from your trip route timeline and have the AI generate a new, shorter, and logically sound itinerary.
+    -   **Save & Load**: Export your plan to a JSON file and load it back anytime to continue where you left off.
+
+-   **Rich Visualizations & Insights**:
+    -   **Daily Activity Map**: View each day's plan on an interactive map. Clicking a map marker highlights the corresponding activity in your itinerary.
+    -   **Trip Route Timeline**: See your entire journey laid out city by city and interact with it to modify your trip.
+    -   **Cost Overview Map**: A high-level map showing the estimated costs associated with each city stop.
+
+-   **Smart Packing Assistant**:
+    -   Get an AI-generated packing list tailored to your specific destination, trip length, and planned activities.
+    -   **Fully Editable**: Check off items as you pack, add your own custom items to any category, and remove anything you don't need.
+
 -   **Comprehensive Trip Details**:
-    -   **Cost Breakdowns**: Get detailed cost estimates for accommodation, activities, inter-city travel, and food.
+    -   **Cost Breakdowns**: Get detailed cost estimates for accommodation, activities, inter-city travel, and food, with currency conversions.
     -   **Travel Logistics**: The plan automatically includes travel information between cities with multiple transport options (flight, train, bus), including estimated costs and durations.
-    -   **Daily Tips**: Each day includes a "Keep in Mind" section with practical advice, dos and don'ts, and local scam warnings.
--   **Interactive Map Visualization**: Click the "View on Map" button for any day to see all activities pinned on an interactive map, helping you visualize your route. Clicking a map marker highlights the activity in your plan.
--   **AI-Generated Packing List**: Get a personalized, categorized packing list for your specific destination and trip length. You can check off items as you pack and even add your own custom items to the list.
--   **PDF Export**: Download your final itinerary as a clean, print-ready PDF, complete with a cover page, summary, and preserved clickable links for online resources.
+    -   **Daily Pro-Tips**: Each day includes actionable "Pro-Tips" for activities and a "Keep In Mind" section with practical advice, dos and don'ts.
+
+-   **Export & Share**:
+    -   Download your complete, personalized itinerary as a polished, print-ready PDF. The export includes a cover page, cost summaries, daily plans, your personal notes, the full packing list, and clickable links for online resources.
+
 -   **Smart Caching**: API requests are cached in your browser's local storage to provide instant results for recent searches and save on API usage.
 
 
@@ -33,7 +48,7 @@ An intelligent, AI-powered travel planner that suggests destinations based on yo
 -   **Frontend**: [React](https://reactjs.org/), [TypeScript](https://www.typescriptlang.org/), [Vite](https://vitejs.dev/), [Tailwind CSS](https://tailwindcss.com/)
 -   **AI Integration**: [Google Gemini API](https://ai.google.dev/) via `@google/genai` SDK
 -   **Mapping**: [Leaflet.js](https://leafletjs.com/)
--   **PDF Generation**: [jsPDF](https://github.com/parallax/jsPDF) & [html2canvas](https://html2canvas.hertzen.com/)
+-   **PDF Generation**: [jsPDF](https://github.com/parallax/jsPDF)
 
 ## Getting Started
 

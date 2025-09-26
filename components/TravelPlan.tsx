@@ -17,6 +17,7 @@ interface TravelPlanProps {
   onReorderActivities: (dayIndex: number, reorderedActivities: ItineraryLocation[]) => void;
   onUpdateUserNote: (dayIndex: number, note: string) => void;
   onRebuildPlan: (refinementNotes: string) => Promise<void>;
+  onDiscardChanges: () => void;
   onOpenSaveModal: () => void;
   isPlanModified: boolean;
   isLoading: boolean;
@@ -24,6 +25,7 @@ interface TravelPlanProps {
   onUpdatePackingList: (list: PackingListCategory[]) => void;
   onTogglePackingItem: (item: string) => void;
   onAddItemToPackingList: (categoryName: string, item: string) => void;
+  onRemovePackingItem: (item: string) => void;
   citiesMarkedForRemoval: Set<number>;
   onToggleCityForRemoval: (cityIndex: number) => void;
 }
@@ -206,22 +208,25 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ location, currencyInfo, onD
         <div
             id={`activity-${location.id}`}
             onClick={onHighlight}
-            draggable="true"
-            onDragStart={onDragStart}
-            onDragEnd={onDragEnd}
             onDragOver={onDragOver}
             onDrop={onDrop}
             onDragEnter={onDragEnter}
             className={`${baseClasses} ${conditionalClasses}`}
         >
             <div className="flex items-start gap-2">
-                <div className="flex-shrink-0 pt-1">
+                <div 
+                    className="flex-shrink-0 pt-1" 
+                    draggable="true" 
+                    onDragStart={onDragStart} 
+                    onDragEnd={onDragEnd}
+                    onClick={(e) => e.stopPropagation()}
+                >
                     <DragHandleIcon />
                 </div>
-                <div className="flex-grow">
+                <div className="flex-grow select-text">
                     <div className="flex justify-between items-start mb-1">
                         <div className="flex items-center gap-3 flex-wrap">
-                            <h4 className="font-bold text-cyan-300">{location.name}</h4>
+                            <h4 className="font-bold text-cyan-300 select-text">{location.name}</h4>
                             <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
                                 location.averageCost > 0
                                 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
@@ -231,7 +236,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ location, currencyInfo, onD
                             </span>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                            <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+                            <span className={`px-2 py-0.5 text-xs font-semibold rounded-full select-text ${
                                 location.type === 'Touristy'
                                 ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
                                 : 'bg-green-500/20 text-green-300 border border-green-500/30'
@@ -245,13 +250,13 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ location, currencyInfo, onD
                     </div>
 
                     {location.duration && (
-                        <div className="flex items-center gap-1.5 text-slate-400 text-sm mb-2">
+                        <div className="flex items-center gap-1.5 text-slate-400 text-sm mb-2 select-text">
                             <StopwatchIcon />
                             <span>{location.duration}</span>
                         </div>
                     )}
                     
-                    <p className="text-slate-400 text-sm">{location.description}</p>
+                    <p className="text-slate-400 text-sm select-text">{location.description}</p>
 
                     {location.visitingTip && (
                         <div className="mt-3 pt-3 border-t border-slate-700/50">
@@ -260,8 +265,8 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ location, currencyInfo, onD
                                     <LightbulbTipIcon />
                                 </div>
                                 <div>
-                                    <h5 className="font-semibold text-cyan-300 text-sm">Pro Tip</h5>
-                                    <p className="text-slate-300 text-sm">{location.visitingTip}</p>
+                                    <h5 className="font-semibold text-cyan-300 text-sm select-text">Pro Tip</h5>
+                                    <p className="text-slate-300 text-sm select-text">{location.visitingTip}</p>
                                 </div>
                              </div>
                         </div>
@@ -269,13 +274,13 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ location, currencyInfo, onD
 
                     {location.links && location.links.length > 0 && (
                         <div className="mt-3 pt-3 border-t border-slate-700/50">
-                             <h5 className="text-xs font-bold text-slate-400 mb-2">Relevant Links</h5>
+                             <h5 className="text-xs font-bold text-slate-400 mb-2 select-text">Relevant Links</h5>
                              <ul className="space-y-2">
                                {location.links.map((link, index) => (
                                  <li key={index}>
                                    <a href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-slate-300 hover:text-cyan-400 transition-colors group" onClick={(e) => e.stopPropagation()}>
                                      <ExternalLinkIcon />
-                                     <span className="truncate group-hover:underline">{link.title}</span>
+                                     <span className="truncate group-hover:underline select-text">{link.title}</span>
                                    </a>
                                  </li>
                                ))}
@@ -285,22 +290,22 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ location, currencyInfo, onD
 
                     {location.averageCost > 0 && (
                         <div className="mt-3 pt-3 border-t border-slate-700/50">
-                            <h5 className="text-xs font-bold text-slate-400 mb-1">Cost Breakdown (est. per person)</h5>
+                            <h5 className="text-xs font-bold text-slate-400 mb-1 select-text">Cost Breakdown (est. per person)</h5>
                             <ul className="text-sm text-slate-300 space-y-1">
                                 {location.costBreakdown.activities > 0 && (
-                                    <li className="flex justify-between items-center">
+                                    <li className="flex justify-between items-center select-text">
                                         <span>🎟️ Activity / Ticket</span>
                                         <span className="font-mono text-slate-200"><CostDisplay usd={location.costBreakdown.activities} currencyInfo={currencyInfo}/></span>
                                     </li>
                                 )}
                                 {location.costBreakdown.food > 0 && (
-                                    <li className="flex justify-between items-center">
+                                    <li className="flex justify-between items-center select-text">
                                         <span>🍜 Food / Dining</span>
                                         <span className="font-mono text-slate-200"><CostDisplay usd={location.costBreakdown.food} currencyInfo={currencyInfo}/></span>
                                     </li>
                                 )}
                                 {location.costBreakdown.accommodation > 0 && (
-                                    <li className="flex justify-between items-center">
+                                    <li className="flex justify-between items-center select-text">
                                         <span>🏠 Accommodation</span>
                                         <span className="font-mono text-slate-200"><CostDisplay usd={location.costBreakdown.accommodation} currencyInfo={currencyInfo}/></span>
                                     </li>
@@ -360,33 +365,37 @@ const DailyPlanCard: React.FC<DailyPlanCardProps> = ({ dailyPlan, dayIndex, curr
             <div className="absolute -left-4 top-4 h-8 w-8 bg-slate-800 rounded-full border-4 border-slate-900 flex items-center justify-center">
                 <span className="font-bold text-cyan-400 text-sm">{dailyPlan.day}</span>
             </div>
-             {dailyPlan.travelInfo && (
+             {dailyPlan.travelInfo && dailyPlan.travelInfo.length > 0 && (
                 <div className="mb-6 p-4 bg-slate-800/70 rounded-lg border border-cyan-500/30">
-                    <div className="flex items-center mb-3">
-                        <TransportIcon />
-                        <h4 className="font-bold text-cyan-300 text-lg">Travel: {dailyPlan.travelInfo.fromCity} to {dailyPlan.travelInfo.toCity}</h4>
-                    </div>
-                    <div className="space-y-4">
-                        {dailyPlan.travelInfo.options.map((option, index) => (
-                            <div key={index} className="p-3 bg-slate-900/40 rounded-lg border border-slate-700">
-                                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
-                                    <span className="font-bold text-white">{option.mode}</span>
-                                    <div className="flex items-center gap-4 text-sm flex-shrink-0">
-                                         <div className="flex items-center gap-1.5 text-slate-300">
-                                            <StopwatchIcon />
-                                            <span>{option.duration}</span>
-                                        </div>
-                                        <div className="flex items-center gap-1.5 text-slate-300 font-mono bg-slate-700/50 px-2 py-1 rounded">
-                                            <CostDisplay usd={option.cost} currencyInfo={currencyInfo} />
-                                        </div>
-                                    </div>
-                                </div>
-                                {option.description && (
-                                    <p className="mt-2 text-xs text-slate-400">{option.description}</p>
-                                )}
+                    {dailyPlan.travelInfo.map((travelLeg, legIndex) => (
+                        <div key={legIndex} className={legIndex > 0 ? "mt-4 pt-4 border-t border-slate-700" : ""}>
+                            <div className="flex items-center mb-3">
+                                <TransportIcon />
+                                <h4 className="font-bold text-cyan-300 text-lg">Travel: {travelLeg.fromCity} to {travelLeg.toCity}</h4>
                             </div>
-                        ))}
-                    </div>
+                            <div className="space-y-4">
+                                {travelLeg.options.map((option, index) => (
+                                    <div key={index} className="p-3 bg-slate-900/40 rounded-lg border border-slate-700">
+                                        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                                            <span className="font-bold text-white">{option.mode}</span>
+                                            <div className="flex items-center gap-4 text-sm flex-shrink-0">
+                                                 <div className="flex items-center gap-1.5 text-slate-300">
+                                                    <StopwatchIcon />
+                                                    <span>{option.duration}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5 text-slate-300 font-mono bg-slate-700/50 px-2 py-1 rounded">
+                                                    <CostDisplay usd={option.cost} currencyInfo={currencyInfo} />
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {option.description && (
+                                            <p className="mt-2 text-xs text-slate-400 select-text">{option.description}</p>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
                 </div>
             )}
             <div className="flex justify-between items-start mb-4">
@@ -480,7 +489,7 @@ const DailyPlanCard: React.FC<DailyPlanCardProps> = ({ dailyPlan, dayIndex, curr
                                     <div className={`mt-0.5 flex-shrink-0 ${iconColor}`}>
                                         <IconComponent />
                                     </div>
-                                    <span className="text-slate-300 text-sm">
+                                    <span className="text-slate-300 text-sm select-text">
                                         {item.tip}
                                     </span>
                                 </li>
@@ -508,7 +517,7 @@ const DailyPlanCard: React.FC<DailyPlanCardProps> = ({ dailyPlan, dayIndex, curr
 
 // --- Main Travel Plan Component ---
 
-const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, timeOfYear, onReset, onBack, onDeleteActivity, onReorderActivities, onUpdateUserNote, onRebuildPlan, onOpenSaveModal, isPlanModified, isLoading, onError, onUpdatePackingList, onTogglePackingItem, onAddItemToPackingList, citiesMarkedForRemoval, onToggleCityForRemoval }) => {
+const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, timeOfYear, onReset, onBack, onDeleteActivity, onReorderActivities, onUpdateUserNote, onRebuildPlan, onDiscardChanges, onOpenSaveModal, isPlanModified, isLoading, onError, onUpdatePackingList, onTogglePackingItem, onAddItemToPackingList, onRemovePackingItem, citiesMarkedForRemoval, onToggleCityForRemoval }) => {
     const totalEstimatedCostUsd = destination.averageCost > 0
         ? Math.round((destination.averageCost / 7) * plan.itinerary.length)
         : 0;
@@ -548,11 +557,17 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, tim
         }, 0);
     
         const totalTravelCost = plan.itinerary.reduce((sum, day) => {
-          if (day.travelInfo && day.travelInfo.options.length > 0) {
-            const cheapestOption = Math.min(...day.travelInfo.options.map(opt => opt.cost));
-            return sum + cheapestOption;
-          }
-          return sum;
+            if (day.travelInfo && day.travelInfo.length > 0) {
+              const dayTravelCost = day.travelInfo.reduce((legSum, travelLeg) => {
+                  if (travelLeg.options && travelLeg.options.length > 0) {
+                      const cheapestOption = Math.min(...travelLeg.options.map(opt => opt.cost));
+                      return legSum + cheapestOption;
+                  }
+                  return legSum;
+              }, 0);
+              return sum + dayTravelCost;
+            }
+            return sum;
         }, 0);
         
         // Prorate food cost from 7-day estimate to the actual trip duration
@@ -597,6 +612,11 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, tim
         }
     };
 
+    const handleDiscard = () => {
+        setRefinementNotes('');
+        onDiscardChanges();
+    };
+
     const handlePackingListButtonClick = async () => {
         if (plan.packingList && plan.packingList.length > 0) {
             setIsPackingListModalOpen(true);
@@ -614,6 +634,23 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, tim
             onError(err instanceof Error ? err.message : 'Failed to generate packing list.');
         } finally {
             setIsPackingListLoading(false);
+        }
+    };
+
+    const handleCityClick = (cityName: string) => {
+        const firstDayIndex = plan.itinerary.findIndex(day => 
+            day.activities.some(activity => activity.city === cityName)
+        );
+
+        if (firstDayIndex !== -1) {
+            const dayCards = document.querySelectorAll('[data-day-card]');
+            const targetCard = dayCards[firstDayIndex] as HTMLElement;
+            if (targetCard) {
+                targetCard.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
         }
     };
 
@@ -1073,6 +1110,7 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, tim
                             citiesMarkedForRemoval={citiesMarkedForRemoval}
                             onToggleCity={onToggleCityForRemoval}
                             isLoading={isLoading}
+                            onCityClick={handleCityClick}
                         />
 
                         <TripOverviewMap
@@ -1184,7 +1222,7 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, tim
                                 <LightbulbIcon />
                                 <h3 className="text-xl font-bold text-cyan-300">Pro-Tip: Itinerary Optimization</h3>
                             </div>
-                            <p className="text-slate-300">{plan.optimizationSuggestions}</p>
+                            <p className="text-slate-300 select-text">{plan.optimizationSuggestions}</p>
                         </div>
                     </div>
 
@@ -1243,13 +1281,25 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, tim
                     </button>
 
                     {showRebuildButton && (
-                         <button
-                            onClick={handleRebuildClick}
-                            disabled={isLoading || isDownloading || isPackingListLoading}
-                            className="w-full sm:w-auto bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                           Rebuild Itinerary
-                        </button>
+                         <>
+                            <button
+                                onClick={handleRebuildClick}
+                                disabled={isLoading || isDownloading || isPackingListLoading}
+                                className="w-full sm:w-auto bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                               Rebuild Itinerary
+                            </button>
+                             <button
+                                onClick={handleDiscard}
+                                disabled={isLoading || isDownloading || isPackingListLoading}
+                                className="w-full sm:w-auto bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.707-10.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L9.414 11H13a1 1 0 100-2H9.414l1.293-1.293z" clipRule="evenodd" />
+                                </svg>
+                                Discard Changes
+                            </button>
+                        </>
                     )}
                     <button
                         onClick={onOpenSaveModal}
@@ -1326,6 +1376,7 @@ const TravelPlanComponent: React.FC<TravelPlanProps> = ({ plan, destination, tim
                     checkedItems={plan.checkedPackingItems || {}}
                     onToggleItem={onTogglePackingItem}
                     onAddItem={onAddItemToPackingList}
+                    onRemoveItem={onRemovePackingItem}
                 />
             )}
         </>

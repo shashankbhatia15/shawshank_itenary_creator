@@ -188,7 +188,7 @@ const itineraryLocationSchema = {
     lat: { type: Type.NUMBER },
     lng: { type: Type.NUMBER },
     duration: { type: Type.STRING, description: "e.g., '2-3 hours'" },
-    visitingTip: { type: Type.STRING },
+    visitingTip: { type: Type.STRING, description: "A concise, actionable tip for visiting this location, e.g., 'Book tickets online in advance' or 'Visit early to avoid crowds'." },
   },
   required: ['name', 'description', 'city', 'type', 'links', 'averageCost', 'costBreakdown', 'lat', 'lng'],
 };
@@ -230,7 +230,11 @@ const dailyPlanSchema = {
     title: { type: Type.STRING, description: "A catchy title for the day's plan" },
     activities: { type: Type.ARRAY, items: itineraryLocationSchema },
     keepInMind: { type: Type.ARRAY, items: keepInMindItemSchema },
-    travelInfo: travelInfoSchema,
+    travelInfo: {
+      type: Type.ARRAY,
+      items: travelInfoSchema,
+      description: "Travel information for the day. For inter-city travel, this will have one entry. For day trips, this MUST have two entries: one for the journey to the destination and one for the return journey."
+    },
     weatherForecast: { type: Type.STRING, description: "A brief, general weather forecast for the city on this day, considering the time of year. e.g., 'Sunny with highs around 25°C.'" },
   },
   required: ['day', 'title', 'activities', 'keepInMind'],
@@ -399,10 +403,10 @@ The plan should include:
     - Name, city, short description, and whether it's 'Touristy' or 'Off-beat'.
     - Lat/Lng coordinates.
     - Estimated duration (e.g., "2-3 hours").
-    - A "Pro Tip" for visiting.
+    - A "visitingTip" which is a Pro Tip for visiting (e.g., "Book online to save time" or "Visit early to avoid crowds").
     - Estimated cost in USD and a breakdown (activities, food) in USD.
-    - At least one relevant link (official site, booking page).
-2.  If the itinerary spans multiple cities, include detailed "TravelInfo" for moving between them, with costs in USD.
+    - For each activity, find links by simulating a Google search for the activity's name. Provide up to 3 of the top search results. You MUST exclude Wikipedia links. Prioritize official websites, ticket vendors, and reputable travel guides.
+2.  Include "TravelInfo". For days involving a change of accommodation city (e.g., moving from Rome to Florence), this will be an array with a single entry. For day trips (e.g., a trip from Florence to Pisa and back to Florence on the same day), this MUST be an array with two entries: one for the outbound journey and one for the return journey. All costs should be in USD.
 3.  For each day, provide 2-3 "Keep In Mind" tips (dos, don'ts, warnings, info).
 4.  Provide a list of "OfficialLinks" (e.g., official tourism board, visa info).
 5.  Provide estimated "CityAccommodationCosts" in USD for each city visited, including nights and total cost.
@@ -445,10 +449,10 @@ The plan must include:
     - Name, city, short description, and whether it's 'Touristy' or 'Off-beat'.
     - Lat/Lng coordinates.
     - Estimated duration.
-    - A "Pro Tip".
+    - A "visitingTip" which is a Pro Tip for visiting (e.g., "Book online to save time" or "Visit early to avoid crowds").
     - Estimated cost in USD and a breakdown.
-    - At least one relevant link.
-3.  "TravelInfo" for moving between cities, with costs in USD.
+    - For each activity, find links by simulating a Google search for the activity's name. Provide up to 3 of the top search results. You MUST exclude Wikipedia links. Prioritize official websites, ticket vendors, and reputable travel guides.
+3.  "TravelInfo". For days involving a change of accommodation city, this will be an array with a single entry. For day trips, this MUST be an array with two entries: one for the outbound journey and one for the return journey. All costs should be in USD.
 4.  Daily "Keep In Mind" tips.
 5.  "OfficialLinks".
 6.  "CityAccommodationCosts" in USD.
@@ -501,9 +505,9 @@ Here are the user's refinement notes:
 
 ${deletedActivitiesPrompt}
 
-Please modify the plan based on the notes. You can add, remove, or reorder activities, or even change cities if requested. Ensure the new plan is coherent and still fits the duration. For each day in the updated plan, ensure there is a general 'weatherForecast'. Ensure all costs (activities, travel, accommodation) are in USD.
+Please modify the plan based on the notes. You can add, remove, or reorder activities, or even change cities if requested. For any new activities you add, ensure you provide all required fields from the schema, including a concise "visitingTip", and find links by simulating a Google search for the activity's name. Provide up to 3 of the top search results. You MUST exclude Wikipedia links. Prioritize official websites, ticket vendors, and reputable travel guides. Ensure the new plan is coherent and still fits the duration. For each day in the updated plan, ensure there is a general 'weatherForecast'. Ensure all costs (activities, travel, accommodation) are in USD.
 
-CRITICAL: You must preserve the 'userNotes' field on each day's plan. If you modify a day, carry its existing 'userNotes' over to the new version unless the user explicitly asks to change the notes.
+CRITICAL: You must preserve the 'userNotes' field on each day's plan. If you modify a day, carry its existing 'userNotes' over to the new version unless the user explicitly asks to change the notes. Ensure all travel is correctly represented: for day trips, the 'travelInfo' array for that day must contain two separate entries for the outbound and return journeys. For travel between base cities, it should contain a single entry.
 
 Return the complete, updated travel plan as a single JSON object matching the provided schema. It must include all parts: itinerary, optimizationSuggestions, officialLinks, and cityAccommodationCosts.`;
 
